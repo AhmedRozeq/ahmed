@@ -1,0 +1,7 @@
+{
+  "name": "Estrattore di Collocazioni Italiane",
+  "description": "Uno strumento basato su IA che analizza testi in italiano per estrarre e spiegare collocazioni comuni, organizzandole per tema per studenti di lingue.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
