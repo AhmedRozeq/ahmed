@@ -14,11 +14,13 @@ interface StudySessionModalProps {
     onClose: () => void;
     onSessionComplete: (updatedItems: SavedCollocation[]) => void;
     sessionMode: 'flashcard' | 'quiz_multiple_choice' | 'quiz_cloze' | 'mixed';
+    cefrLevel: string;
+    register: string;
 }
 
 const srsIntervals = [1, 3, 7, 14, 30];
 
-const StudySessionModal: React.FC<StudySessionModalProps> = ({ newItems, reviewItems, onClose, onSessionComplete, sessionMode }) => {
+const StudySessionModal: React.FC<StudySessionModalProps> = ({ newItems, reviewItems, onClose, onSessionComplete, sessionMode, cefrLevel, register }) => {
     const sessionQueue = useMemo(() => [...reviewItems, ...newItems], [newItems, reviewItems]);
     const totalItems = sessionQueue.length;
 
@@ -55,6 +57,14 @@ const StudySessionModal: React.FC<StudySessionModalProps> = ({ newItems, reviewI
         }
     };
 
+    // Effect to handle session completion when all items have been processed
+    useEffect(() => {
+        if (currentIndex >= totalItems && totalItems > 0) {
+            onSessionComplete(updatedItems);
+            handleClose();
+        }
+    }, [currentIndex, totalItems, updatedItems, onSessionComplete, handleClose]);
+
 
     const handleSpeak = (text: string) => {
         if ('speechSynthesis' in window) {
@@ -70,23 +80,18 @@ const StudySessionModal: React.FC<StudySessionModalProps> = ({ newItems, reviewI
         setQuizState({ isLoading: true, data: null, error: null, isSubmitted: false, userAnswer: '' });
         try {
             const quizType = sessionMode === 'quiz_cloze' ? 'cloze' : 'multiple_choice';
-            const data = await generateClozeTest(item, { quizType, cefrLevel: 'B1' });
+            const data = await generateClozeTest(item, { quizType, cefrLevel, register });
             setQuizState(prev => ({ ...prev, isLoading: false, data }));
         } catch (err) {
             console.error("Errore during il caricamento del quiz per la sessione di studio:", err);
             const message = err instanceof Error ? err.message : "Impossibile caricare il quiz.";
             setQuizState(prev => ({ ...prev, isLoading: false, error: message }));
         }
-    }, [sessionMode]);
+    }, [sessionMode, cefrLevel, register]);
 
     const advanceSession = useCallback(() => {
-        if (currentIndex < totalItems - 1) {
-            setCurrentIndex(prev => prev + 1);
-        } else {
-            onSessionComplete(updatedItems);
-            handleClose();
-        }
-    }, [currentIndex, totalItems, onSessionComplete, updatedItems, handleClose]);
+        setCurrentIndex(prev => prev + 1);
+    }, []);
     
     const handleProgress = useCallback((remembered: boolean) => {
         if (!currentItem) return;
@@ -102,8 +107,10 @@ const StudySessionModal: React.FC<StudySessionModalProps> = ({ newItems, reviewI
             updatedItem = { ...currentItem, srsLevel: newSrsLevel, nextReviewDate: nextReview.getTime() };
         } else {
              if (currentItem.srsLevel === 0) {
+                // If it's a new card and they get it wrong, it stays as a new card
                 updatedItem = { ...currentItem };
             } else {
+                // If it's a review card and they get it wrong, reset level to 1 for review tomorrow
                 const nextReview = new Date();
                 nextReview.setHours(0,0,0,0);
                 nextReview.setDate(nextReview.getDate() + 1);
@@ -165,7 +172,7 @@ const StudySessionModal: React.FC<StudySessionModalProps> = ({ newItems, reviewI
         if (!currentItem) return;
         setExtraExample({ isLoading: true, content: null, error: null });
         try {
-            const example = await generateAdditionalExample(currentItem);
+            const example = await generateAdditionalExample(currentItem, { cefrLevel, register });
             setExtraExample({ isLoading: false, content: example, error: null });
         } catch (err) {
             const message = err instanceof Error ? err.message : "Impossibile caricare l'esempio.";

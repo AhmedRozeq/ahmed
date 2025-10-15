@@ -5,83 +5,113 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Estrattore di Collocazioni Italiane</title>
+    <script>
+      // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reactflow@11/dist/style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
       :root {
-        --color-bg: #f8fafc; /* slate-50 */
-        --color-bg-alt: #f1f5f9; /* slate-100 */
+        --color-bg-start: #f0f5ff;
+        --color-bg-end: #fbfaff;
         --color-panel: rgba(255, 255, 255, 0.6);
-        --color-border: #e2e8f0; /* slate-200 */
-        --color-border-hover: #cbd5e1; /* slate-300 */
-        --color-text-main: #1e293b; /* slate-800 */
-        --color-text-light: #475569; /* slate-600 */
-        --color-text-lighter: #64748b; /* slate-500 */
+        --color-border: rgba(0, 0, 0, 0.07);
+        --color-border-hover: rgba(0, 0, 0, 0.12);
+        --color-text-main: #1f2937;
+        --color-text-light: #4b5563;
+        --color-text-lighter: #6b7280;
         
-        --color-primary: #0ea5e9; /* sky-500 */
-        --color-primary-dark: #0284c7; /* sky-600 */
-        --color-primary-light: #e0f2fe; /* sky-100 */
+        --color-primary: #6366f1;
+        --color-primary-dark: #4f46e5;
+        --color-primary-light: #eef2ff;
 
-        --color-accent: #8b5cf6; /* violet-500 */
-        --color-accent-dark: #7c3aed; /* violet-600 */
+        --color-accent-teal: #14b8a6; 
+        --color-accent-amber: #f59e0b;
+        --color-accent-rose: #f43f5e;
 
-        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        --shadow-inset: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.04), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+        --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+
+        /* Icon Colors */
+        --icon-primary-main: var(--color-primary-dark);
+        --icon-primary-accent: #818cf8;
+        --icon-primary-subtle: #c7d2fe;
+        --icon-danger-main: #f43f5e;
+        --icon-danger-accent: #fb7185;
+        --icon-danger-fill: #fff1f2;
+        --icon-success-main: #10b981;
+        --icon-success-fill: #d1fae5;
+        --icon-white-stroke: white;
       }
 
       html.dark {
-        --color-bg: #0f172a; /* slate-900 */
-        --color-bg-alt: #1e2937; /* slate-800 */
-        --color-panel: rgba(30, 41, 59, 0.6); /* slate-800 with transparency */
-        --color-border: #334155; /* slate-700 */
-        --color-border-hover: #475569; /* slate-600 */
-        --color-text-main: #f1f5f9; /* slate-100 */
-        --color-text-light: #cbd5e1; /* slate-300 */
-        --color-text-lighter: #94a3b8; /* slate-400 */
+        --color-bg-start: #0f172a;
+        --color-bg-end: #1e1b4b;
+        --color-panel: rgba(30, 27, 75, 0.25);
+        --color-border: rgba(255, 255, 255, 0.1);
+        --color-border-hover: rgba(255, 255, 255, 0.2);
+        --color-text-main: #f8fafc;
+        --color-text-light: #cbd5e1;
+        --color-text-lighter: #94a3b8;
         
-        --color-primary: #38bdf8; /* sky-400 */
-        --color-primary-dark: #0ea5e9; /* sky-500 */
-        --color-primary-light: #0c4a6e; /* sky-900 */
+        --color-primary: #818cf8;
+        --color-primary-dark: #a5b4fc;
+        --color-primary-light: #312e81;
+        
+        --color-accent-teal: #5eead4;
+        --color-accent-amber: #fcd34d;
+        --color-accent-rose: #fda4af;
+        
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.1);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.15), 0 2px 4px -2px rgb(0 0 0 / 0.15);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.2), 0 4px 6px -4px rgb(0 0 0 / 0.2);
+        --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
 
-        --color-accent: #a78bfa; /* violet-400 */
-        --color-accent-dark: #8b5cf6; /* violet-500 */
-        
-        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.15);
-        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
-        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.25), 0 4px 6px -4px rgb(0 0 0 / 0.25);
-        --shadow-inset: inset 0 2px 4px 0 rgb(0 0 0 / 0.15);
+        /* Icon Colors */
+        --icon-primary-main: var(--color-primary);
+        --icon-primary-accent: #a5b4fc;
+        --icon-primary-subtle: #6366f1;
+        --icon-danger-main: #fb7185;
+        --icon-danger-accent: #fda4af;
+        --icon-danger-fill: #52121d;
+        --icon-success-main: #34d399;
+        --icon-success-fill: #064e3b;
+        --icon-white-stroke: var(--color-text-light);
+      }
+      
+      /* Animations */
+      @keyframes background-pan {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
       }
 
       body {
-        font-family: 'Inter', sans-serif;
-        background-color: var(--color-bg-alt);
+        font-family: 'Poppins', sans-serif;
         color: var(--color-text-main);
         overflow-x: hidden;
+        background: linear-gradient(225deg, var(--color-bg-start), var(--color-bg-end), #a5b4fc, #d8b4fe, #f9a8d4, var(--color-bg-start));
+        background-size: 600% 600%;
+        animation: background-pan 80s ease infinite;
       }
 
-      html.dark body {
-        background-color: var(--color-bg);
-      }
-
-
-      /* Animations */
-      @keyframes fade-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      @keyframes fade-in-up {
-        from { opacity: 0; transform: translateY(15px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      @keyframes scale-in {
-        from { opacity: 0; transform: scale(0.95); }
-        to { opacity: 1; transform: scale(1); }
-      }
+      @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
       .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
       .animate-fade-in-up { animation: fade-in-up 0.5s cubic-bezier(0.215, 0.610, 0.355, 1.000) forwards; }
       .animate-scale-in { animation: scale-in 0.3s ease-out forwards; }
@@ -91,80 +121,48 @@
       .animate-fade-out { animation: fade-out 0.3s ease-out forwards; }
       .animate-scale-out { animation: scale-out 0.3s ease-out forwards; }
 
-      @keyframes slide-in-right {
-        from { transform: translateX(100%); }
-        to { transform: translateX(0); }
-      }
+      @keyframes slide-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
       .animate-slide-in-right { animation: slide-in-right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
 
-      @keyframes slide-out-right {
-        from { transform: translateX(0); }
-        to { transform: translateX(100%); }
-      }
+      @keyframes slide-out-right { from { transform: translateX(0); } to { transform: translateX(100%); } }
       .animate-slide-out-right { animation: slide-out-right 0.3s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards; }
-      /* End Animations */
 
-      .react-flow__attribution {
-        background: rgba(248, 250, 252, 0.8) !important;
-      }
-      html.dark .react-flow__attribution {
-        background: rgba(31, 41, 55, 0.8) !important;
-      }
+      .react-flow__attribution { background: rgba(248, 250, 252, 0.8) !important; }
+      html.dark .react-flow__attribution { background: rgba(31, 41, 55, 0.8) !important; }
 
       .glass-panel {
         background-color: var(--color-panel);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(32px);
+        -webkit-backdrop-filter: blur(32px);
         border: 1px solid var(--color-border);
-      }
-
-      html.dark .glass-panel {
-        border-color: rgba(51, 65, 85, 0.7);
-        background-color: rgba(30, 41, 59, 0.6);
-      }
-      
-      .splitter {
-        touch-action: none;
-        background-color: transparent;
-        cursor: col-resize;
-        width: 12px;
-        margin: 0 -6px;
-        z-index: 10;
+        box-shadow: var(--shadow-lg);
         position: relative;
-        transition: background-color 0.2s ease;
+        z-index: 1;
       }
-      .splitter:hover, .splitter:active {
-        background-color: var(--color-primary-light);
+       html.dark .glass-panel::before {
+          content: "";
+          position: absolute;
+          top: 0; right: 0; bottom: 0; left: 0;
+          z-index: -1;
+          border-radius: inherit;
+          background: radial-gradient(400px circle at 50% 0%, rgba(167, 139, 250, 0.1), transparent 40%);
+          opacity: 0;
+          transition: opacity 0.4s ease-in-out;
       }
-       html.dark .splitter:hover, html.dark .splitter:active {
-        background-color: rgba(56, 189, 248, 0.1);
-      }
-      .splitter::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 2px;
-        height: 32px;
-        background-color: var(--color-border-hover);
-        border-radius: 1px;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-      }
-      .splitter:hover::before, .splitter:active::before {
-        opacity: 1;
+      html.dark .glass-panel:hover::before {
+          opacity: 1;
       }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0",
-    "reactflow": "https://aistudiocdn.com/reactflow@^11"
+    "reactflow": "https://aistudiocdn.com/reactflow@^11",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^6"
   }
 }
 </script>

@@ -58,7 +58,7 @@ const AnalysisOptionsModal: React.FC<AnalysisOptionsModalProps> = ({
       >
         <header className="flex items-center justify-between p-4 border-b border-slate-200/80 dark:border-slate-700/80">
           <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <SparklesIcon className="w-5 h-5 text-sky-500" />
+            <SparklesIcon className="w-5 h-5 text-indigo-500" />
             {title}
           </h2>
           <button
@@ -73,7 +73,7 @@ const AnalysisOptionsModal: React.FC<AnalysisOptionsModalProps> = ({
           <p className="text-slate-600 dark:text-slate-300">Scegli il livello di difficoltà e il registro linguistico per la prossima azione.</p>
           <div>
             <label htmlFor="cefr-level-modal" className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Livello QCER (CEFR)</label>
-            <select id="cefr-level-modal" value={cefrLevel} onChange={(e) => setCefrLevel(e.target.value)} className="w-full p-2.5 border border-slate-300/80 dark:border-slate-600/80 rounded-lg bg-white/60 dark:bg-slate-900/40 focus:ring-2 focus:ring-sky-500">
+            <select id="cefr-level-modal" value={cefrLevel} onChange={(e) => setCefrLevel(e.target.value)} className="w-full p-2.5 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200">
                 <option value="A1">A1 (Principiante)</option>
                 <option value="A2">A2 (Elementare)</option>
                 <option value="B1">B1 (Intermedio)</option>
@@ -84,12 +84,13 @@ const AnalysisOptionsModal: React.FC<AnalysisOptionsModalProps> = ({
           </div>
           <div>
             <label htmlFor="analysis-register-modal" className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Registro Linguistico</label>
-            <select id="analysis-register-modal" value={register} onChange={(e) => setRegister(e.target.value)} className="w-full p-2.5 border border-slate-300/80 dark:border-slate-600/80 rounded-lg bg-white/60 dark:bg-slate-900/40 focus:ring-2 focus:ring-sky-500">
+            <select id="analysis-register-modal" value={register} onChange={(e) => setRegister(e.target.value)} className="w-full p-2.5 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200">
                 <option value="Neutro">Neutro</option>
                 <option value="Formale">Formale</option>
                 <option value="Informale">Informale</option>
                 <option value="Giornalistico">Giornalistico</option>
                 <option value="Letterario">Letterario</option>
+                <option value="Burocratico">Burocratico</option>
             </select>
           </div>
         </div>
@@ -102,7 +103,7 @@ const AnalysisOptionsModal: React.FC<AnalysisOptionsModalProps> = ({
             </button>
             <button
                 onClick={handleConfirm}
-                className="px-6 py-2 text-sm font-semibold text-white bg-sky-600 rounded-lg hover:bg-sky-700"
+                className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
             >
                 {confirmText}
             </button>

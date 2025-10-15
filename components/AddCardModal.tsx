@@ -10,9 +10,11 @@ interface AddCardModalProps {
   onClose: () => void;
   topic: string;
   onSave: (cardData: GeneratedCardData & { notes: string; tags: string[] }) => void;
+  cefrLevel: string;
+  register: string;
 }
 
-const AddCardModal: React.FC<AddCardModalProps> = ({ isOpen, onClose, topic, onSave }) => {
+const AddCardModal: React.FC<AddCardModalProps> = ({ isOpen, onClose, topic, onSave, cefrLevel, register }) => {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [status, setStatus] = useState<'loading' | 'confirm' | 'error'>('loading');
   const [generatedData, setGeneratedData] = useState<GeneratedCardData | null>(null);
@@ -41,7 +43,7 @@ const AddCardModal: React.FC<AddCardModalProps> = ({ isOpen, onClose, topic, onS
         setNotes('');
         setTags('');
         try {
-          const data = await generateCollocationCard(topic);
+          const data = await generateCollocationCard(topic, { cefrLevel, register });
           setGeneratedData(data);
           setStatus('confirm');
         } catch (err) {
@@ -52,7 +54,7 @@ const AddCardModal: React.FC<AddCardModalProps> = ({ isOpen, onClose, topic, onS
       };
       createCard();
     }
-  }, [isOpen, topic]);
+  }, [isOpen, topic, cefrLevel, register]);
 
   const handleConfirm = () => {
     if (!generatedData) return;
@@ -122,11 +124,11 @@ const AddCardModal: React.FC<AddCardModalProps> = ({ isOpen, onClose, topic, onS
               
                 <div>
                     <label htmlFor="card-notes" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Note Personali (Opzionale)</label>
-                    <textarea id="card-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full p-2 border border-slate-300/80 dark:border-slate-600/80 rounded-md bg-white/60 dark:bg-slate-900/40 focus:ring-2 focus:ring-emerald-500" placeholder="Aggiungi un promemoria o un esempio..."/>
+                    <textarea id="card-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full p-2 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500" placeholder="Aggiungi un promemoria o un esempio..."/>
                 </div>
                 <div>
                     <label htmlFor="card-tags" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tag (Opzionale, separati da virgola)</label>
-                    <input id="card-tags" type="text" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full p-2 border border-slate-300/80 dark:border-slate-600/80 rounded-md bg-white/60 dark:bg-slate-900/40 focus:ring-2 focus:ring-emerald-500" placeholder="Es. lavoro, utile, da ripassare"/>
+                    <input id="card-tags" type="text" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full p-2 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500" placeholder="Es. lavoro, utile, da ripassare"/>
                 </div>
 
               <div className="flex justify-end gap-3 pt-2">

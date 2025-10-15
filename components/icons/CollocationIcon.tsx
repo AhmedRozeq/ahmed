@@ -13,15 +13,8 @@ const CollocationIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     strokeLinejoin="round"
     {...props}
   >
-    {/* Top-left block */}
-    <path d="M10 3H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1Z" />
-    {/* Interlocking part of top-left block */}
-    <path d="M8 11V8a2 2 0 1 1 4 0v3" />
-    
-    {/* Bottom-right block */}
-    <path d="M20 13h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1Z" />
-     {/* Interlocking part of bottom-right block */}
-    <path d="M12 13v3a2 2 0 1 0 4 0v-3" />
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72" />
   </svg>
 );
 

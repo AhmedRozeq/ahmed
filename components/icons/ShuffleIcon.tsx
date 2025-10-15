@@ -13,11 +13,11 @@ const ShuffleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     strokeLinejoin="round"
     {...props}
   >
-    <path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22" />
-    <path d="m18 2 4 4-4 4" />
-    <path d="M2 6h1.4c1.3 0 2.5.6 3.3 1.7l2.1 3" />
-    <path d="m18 22-4-4 4-4" />
-    <path d="M14 12.3 7.7 20.3c-.8 1.1-2 1.7-3.3 1.7H2" />
+    <polyline points="16 3 21 3 21 8" />
+    <line x1="4" x2="21" y1="20" y2="3" />
+    <polyline points="16 21 21 21 21 16" />
+    <line x1="15" x2="21" y1="15" y2="21" />
+    <line x1="4" x2="9" y1="4" y2="9" />
   </svg>
 );
 

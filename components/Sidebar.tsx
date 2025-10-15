@@ -2,6 +2,8 @@ import React, { useState, useEffect, forwardRef } from 'react';
 import { Collocation, RelatedCollocation, GroundingChunk } from '../types';
 import DeepDiveDisplay from './DeepDiveDisplay';
 import XCircleIcon from './icons/XCircleIcon';
+import LoadingSpinner from './LoadingSpinner';
+import InfoIcon from './icons/InfoIcon';
 
 interface SidebarProps {
   state: {
@@ -12,14 +14,17 @@ interface SidebarProps {
     error: string | null;
     relatedCollocations: { data: RelatedCollocation[] | null; isLoading: boolean; error: string | null; };
     webExamples: { summary: string | null; chunks: GroundingChunk[] | null; isLoading: boolean; error: string | null; };
-    questions: Array<{ id: string; question: string; answer: string | null; isLoading: boolean; error: string | null; }>;
+    questions: Array<{ id: string; question: string; answer: string | null; chunks: GroundingChunk[]; isLoading: boolean; error: string | null; }>;
   };
   onClose: () => void;
   onTermDeepDive: (item: string) => void;
   onAskQuestion: (question: string) => void;
+  onConversationalPractice: (item: Collocation | string, context: string | null) => void;
+  cefrLevel: string;
+  register: string;
 }
 
-const Sidebar = forwardRef<HTMLElement, SidebarProps>(({ state, onClose, onTermDeepDive, onAskQuestion }, ref) => {
+const Sidebar = forwardRef<HTMLElement, SidebarProps>(({ state, onClose, onTermDeepDive, onAskQuestion, onConversationalPractice, cefrLevel, register }, ref) => {
   const [shouldRender, setShouldRender] = useState(state.isOpen);
 
   useEffect(() => {
@@ -56,6 +61,18 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(({ state, onClose, onTermD
         </button>
       </header>
       <div className="flex-grow p-6 overflow-y-auto">
+        {state.isLoading && (
+            <div className="flex flex-col items-center justify-center h-full">
+                <LoadingSpinner message="Generazione approfondimento..."/>
+            </div>
+        )}
+        {state.error && (
+            <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                 <InfoIcon className="w-12 h-12 text-red-400 mb-4" />
+                <h3 className="text-lg font-semibold text-red-800 dark:text-red-300">Si è verificato un errore</h3>
+                <p className="text-sm text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 p-3 rounded-md mt-2">{state.error}</p>
+            </div>
+        )}
         {state.item && (
             <DeepDiveDisplay
                 deepDiveItem={state.item}
@@ -71,6 +88,9 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(({ state, onClose, onTermD
                 webExamples={state.webExamples.chunks}
                 isWebExamplesLoading={state.webExamples.isLoading}
                 webExamplesError={state.webExamples.error}
+                onConversationalPractice={onConversationalPractice}
+                cefrLevel={cefrLevel}
+                register={register}
             />
         )}
       </div>

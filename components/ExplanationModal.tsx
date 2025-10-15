@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { analyzeGrammarOfText, explainText } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
@@ -12,9 +13,11 @@ interface ExplanationModalProps {
   onClose: () => void;
   item: string;
   type: 'explanation' | 'grammar';
+  cefrLevel?: string;
+  register?: string;
 }
 
-const ExplanationModal: React.FC<ExplanationModalProps> = ({ isOpen, onClose, item, type }) => {
+const ExplanationModal: React.FC<ExplanationModalProps> = ({ isOpen, onClose, item, type, cefrLevel, register }) => {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isLoading, setIsLoading] = useState(false);
   const [content, setContent] = useState<string | null>(null);
@@ -34,8 +37,8 @@ const ExplanationModal: React.FC<ExplanationModalProps> = ({ isOpen, onClose, it
         setError(null);
         try {
           const result = type === 'grammar' 
-            ? await analyzeGrammarOfText(item) 
-            : await explainText(item);
+            ? await analyzeGrammarOfText(item, { cefrLevel, register }) 
+            : await explainText(item, { cefrLevel, register });
           setContent(result);
         } catch (err: any) {
           setError(err.message || 'An error occurred');
@@ -45,7 +48,7 @@ const ExplanationModal: React.FC<ExplanationModalProps> = ({ isOpen, onClose, it
       };
       fetchContent();
     }
-  }, [isOpen, item, type]);
+  }, [isOpen, item, type, cefrLevel, register]);
 
   const handleAnimationEnd = () => {
     if (!isOpen) {

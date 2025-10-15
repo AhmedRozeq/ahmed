@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { SavedCollocation } from '../types';
 import TrendingUpIcon from './icons/TrendingUpIcon';
@@ -44,11 +43,11 @@ const MasteryChart: React.FC<MasteryChartProps> = ({ deck }) => {
         <div key={tema}>
           <div className="flex justify-between items-center mb-1">
             <span className="text-sm font-medium text-slate-700">{tema}</span>
-            <span className="text-sm font-semibold text-indigo-600">{percentage}%</span>
+            <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{percentage}%</span>
           </div>
           <div className="w-full bg-slate-200 rounded-full h-2.5">
             <div
-              className="bg-gradient-to-r from-indigo-400 to-purple-500 h-2.5 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-indigo-400 to-violet-500 h-2.5 rounded-full transition-all duration-500"
               style={{ width: `${percentage}%` }}
             ></div>
           </div>

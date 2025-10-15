@@ -29,9 +29,10 @@ interface KanbanBoardProps {
     onGenerateStory: (item: SavedCollocation) => void;
     onOpenSentenceImprover: (collocation?: SavedCollocation) => void;
     onDeepDive: (item: Collocation | string) => void;
+    onVoicePractice: (item: Collocation | string) => void;
 }
 
-const KanbanBoard: React.FC<KanbanBoardProps> = ({ deck, onUpdateDeck, onUpdateCard, onRemoveCard, stories, onGenerateStory, onOpenSentenceImprover, onDeepDive }) => {
+const KanbanBoard: React.FC<KanbanBoardProps> = ({ deck, onUpdateDeck, onUpdateCard, onRemoveCard, stories, onGenerateStory, onOpenSentenceImprover, onDeepDive, onVoicePractice }) => {
     const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
     const [dragOverColumn, setDragOverColumn] = useState<KanbanStatus | null>(null);
 
@@ -130,6 +131,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ deck, onUpdateDeck, onUpdateC
                                     onGenerateStory={() => onGenerateStory(item)}
                                     onImproveSentence={() => onOpenSentenceImprover(item)}
                                     onDeepDive={onDeepDive}
+                                    onVoicePractice={() => onVoicePractice(item)}
                                 />
                             </div>
                         ))}

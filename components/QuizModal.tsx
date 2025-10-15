@@ -121,7 +121,7 @@ const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, collocation, ini
           </div>
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); handleSubmission(userAnswer); }}>
-            <input ref={inputRef} type="text" value={userAnswer} onChange={(e) => setUserAnswer(e.target.value)} disabled={submitted} placeholder="Scrivi qui la parte mancante..." className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-sky-500 dark:bg-slate-900 dark:text-slate-100 transition-shadow duration-200 disabled:bg-slate-100 dark:disabled:bg-slate-800" />
+            <input ref={inputRef} type="text" value={userAnswer} onChange={(e) => setUserAnswer(e.target.value)} disabled={submitted} placeholder="Scrivi qui la parte mancante..." className="w-full p-3 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 disabled:bg-gray-100 dark:disabled:bg-gray-800" />
             {!submitted && <div className="flex justify-end mt-4"><button type="submit" disabled={!userAnswer.trim()} className="px-6 py-2 text-base font-semibold text-white bg-sky-600 rounded-md hover:bg-sky-700 disabled:bg-slate-400">Verifica</button></div>}
           </form>
         )}
@@ -139,19 +139,19 @@ const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, collocation, ini
         <p className="text-slate-600 dark:text-slate-300">Inserisci una collocazione per generare un quiz personalizzato.</p>
         <div>
             <label htmlFor="topic-input" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Collocazione</label>
-            <input id="topic-input" type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="Es. 'andare d'accordo'" className="w-full p-2.5 border border-slate-300/80 dark:border-slate-600/80 rounded-lg bg-white/60 dark:bg-slate-900/40 focus:ring-2 focus:ring-sky-500"/>
+            <input id="topic-input" type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="Es. 'andare d'accordo'" className="w-full p-2.5 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
                  <label htmlFor="quiz-type" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tipo di Quiz</label>
-                 <select id="quiz-type" value={quizOptions.quizType} onChange={e => setQuizOptions(o => ({...o, quizType: e.target.value as any}))} className="w-full p-2.5 border border-slate-300/80 dark:border-slate-600/80 rounded-lg bg-white/60 dark:bg-slate-900/40 focus:ring-2 focus:ring-sky-500">
+                 <select id="quiz-type" value={quizOptions.quizType} onChange={e => setQuizOptions(o => ({...o, quizType: e.target.value as any}))} className="w-full p-2.5 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200">
                     <option value="multiple_choice">Scelta Multipla</option>
                     <option value="cloze">Completamento</option>
                  </select>
             </div>
              <div>
                  <label htmlFor="cefr-level-quiz" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Livello</label>
-                 <select id="cefr-level-quiz" value={quizOptions.cefrLevel} onChange={e => setQuizOptions(o => ({...o, cefrLevel: e.target.value}))} className="w-full p-2.5 border border-slate-300/80 dark:border-slate-600/80 rounded-lg bg-white/60 dark:bg-slate-900/40 focus:ring-2 focus:ring-sky-500">
+                 <select id="cefr-level-quiz" value={quizOptions.cefrLevel} onChange={e => setQuizOptions(o => ({...o, cefrLevel: e.target.value}))} className="w-full p-2.5 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200">
                     <option value="A1">A1 (Principiante)</option>
                     <option value="A2">A2 (Elementare)</option>
                     <option value="B1">B1 (Intermedio)</option>
@@ -162,12 +162,13 @@ const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, collocation, ini
             </div>
             <div>
                 <label htmlFor="register-quiz" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Registro</label>
-                <select id="register-quiz" value={quizOptions.register} onChange={e => setQuizOptions(o => ({...o, register: e.target.value}))} className="w-full p-2.5 border border-slate-300/80 dark:border-slate-600/80 rounded-lg bg-white/60 dark:bg-slate-900/40 focus:ring-2 focus:ring-sky-500">
+                <select id="register-quiz" value={quizOptions.register} onChange={e => setQuizOptions(o => ({...o, register: e.target.value}))} className="w-full p-2.5 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200">
                     <option value="Neutro">Neutro</option>
                     <option value="Formale">Formale</option>
                     <option value="Informale">Informale</option>
                     <option value="Giornalistico">Giornalistico</option>
                     <option value="Letterario">Letterario</option>
+                    <option value="Burocratico">Burocratico</option>
                 </select>
             </div>
         </div>

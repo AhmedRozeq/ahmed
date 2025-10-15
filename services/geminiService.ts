@@ -1,5 +1,7 @@
+
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { CollocationsResult, Collocation, ClozeTestResult, RelatedCollocation, QuizOptions, GeneratedCardData, RolePlayResult, RelatedExample, DictionaryResult, GroundingChunk, ImprovedSentenceResult, WeeklyStats, SavedCollocation, ThemeExplanationResult, StoryResult, CardDeepDiveResult } from '../types';
+import { CollocationsResult, Collocation, ClozeTestResult, RelatedCollocation, QuizOptions, GeneratedCardData, RolePlayResult, RelatedExample, DictionaryResult, GroundingChunk, ImprovedSentenceResult, WeeklyStats, SavedCollocation, ThemeExplanationResult, StoryResult, CardDeepDiveResult, ConversationTurn, AITutorResponse, FollowUpQuestion, SuggestCollocationsResult, ThematicDeckResult, MindMapResult, ImprovedTextResult, DeepDiveOptions, VoiceScenariosResult, CreativeFeedbackResult, VoiceScenario } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable is not set");
@@ -9,24 +11,44 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const handleGeminiError = (error: unknown, context: string): string => {
     console.error(`Errore durante ${context}:`, error);
     if (error instanceof Error) {
-        if (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429')) {
+        const errorMessage = error.message.toLowerCase();
+
+        // Safety block (most common for unexpected content issues)
+        if (errorMessage.includes('safety')) {
+            return `La risposta dell'IA per "${context}" è stata bloccata per motivi di sicurezza. Questo può accadere se il testo di input o l'output generato contiene contenuti ritenuti sensibili. Prova a riformulare o a usare un testo diverso.`;
+        }
+
+        // Quota / Rate limiting
+        if (errorMessage.includes('resource_exhausted') || errorMessage.includes('429')) {
             return "Hai superato la quota di richieste. Attendi un minuto e riprova.";
         }
-        // Specific check for JSON parsing errors, which throw SyntaxError
-        if (error instanceof SyntaxError) {
-             return `La risposta dell'IA non era nel formato JSON atteso per ${context}. Questo può accadere se il modello è sovraccarico o se la risposta è stata bloccata. Riprova.`;
-        }
-        if (error.message.toLowerCase().includes('json')) {
-             return `La risposta dell'IA non è valida per ${context}. Riprova.`;
-        }
-        if (error.message.toLowerCase().includes('fetch')) {
+
+        // Network errors
+        if (errorMessage.includes('fetch') || errorMessage.includes('network')) {
             return "Errore di rete. Controlla la tua connessione e riprova.";
         }
-        // This is for custom-thrown errors that should be displayed as-is
-        if (error.message.startsWith("Impossibile") || error.message.startsWith("Hai superato") || error.message.startsWith("Formato JSON")) {
+        
+        // Invalid Argument (400)
+        if (errorMessage.includes('invalid argument') || errorMessage.includes('400')) {
+             return `La richiesta all'IA per "${context}" non è valida. Potrebbe esserci un problema con il formato dei dati inviati.`;
+        }
+
+        // Custom JSON validation errors
+        if (error.message.includes("risposta JSON dall'IA")) {
+            return error.message;
+        }
+        
+        // General JSON parsing errors
+        if (error instanceof SyntaxError || errorMessage.includes('json')) {
+             return `La risposta dell'IA non era nel formato JSON atteso per ${context}. Questo può accadere se il modello è sovraccarico o se la risposta è stata bloccata. Riprova.`;
+        }
+
+        // Other custom-thrown errors
+        if (error.message.startsWith("Impossibile") || error.message.startsWith("Hai superato")) {
             return error.message;
         }
     }
+    // Default fallback
     return `Si è verificato un errore imprevisto durante ${context}. Riprova più tardi.`;
 };
 
@@ -34,16 +56,16 @@ export const extractCollocations = async (text: string, cefrLevel?: string): Pro
     const prompt = `
 Agisci come linguista computazionale e lessicografo italiano specializzato in collocazioni, con un'enfasi sulla didattica per studenti stranieri (L2).
 
-Obiettivo: Dal testo fornito, estrai un dizionario di collocazioni organizzato per temi. Per ogni collocazione, fornisci la forma normalizzata (lemma), la frase esatta dal testo, una spiegazione in stile Feynman e delle parole correlate.
+Obiettivo: Dal testo fornito, estrai un dizionario di collocazioni organizzato per temi. Per ogni collocazione, fornisci la forma normalizzata (lemma), la frase esatta dal testo, una spiegazione in stile Feynman e delle parole correlate con esempi.
 
-**Istruzioni per le Spiegazioni (Stile Feynman per studenti L2 - OBBLIGATORIO):**
-La spiegazione è la parte più importante. Deve essere chiara, intuitiva e memorabile, non una semplice definizione.
-- **Parti dal Concetto Base:** Isola l'idea centrale della collocazione. Qual è l'azione o lo stato fondamentale?
-- **Usa un'Analogia Semplice:** Crea un paragone con un'esperienza quotidiana o un'immagine facile da visualizzare. Esempio per "avere un asso nella manica": "Immagina di giocare a carte. È come tenere nascosta la carta migliore per usarla al momento giusto e sorprendere tutti."
-- **Spiega il "Perché" delle Parole:** Spiega perché si usa quella specifica combinazione di parole, se possibile. Che immagine mentale evoca? Esempio per "prendere una decisione": "La parola 'prendere' dà l'idea di afferrare qualcosa di concreto, come se la decisione fosse un oggetto che scegli da uno scaffale tra tante opzioni."
-- **Linguaggio:** Usa frasi brevi, vocabolario comune e un tono diretto e amichevole. Evita definizioni da dizionario. La spiegazione deve essere al massimo di 2-3 frasi.
+**Istruzioni per le Spiegazioni (Metodo Feynman per Studenti L2 - OBBLIGATORIO):**
+La spiegazione è la parte più importante. DEVE essere estremamente semplice, intuitiva e basata su un'analogia, non una definizione accademica.
+- **Parti dall'Analogia:** Inizia con un paragone concreto. Esempio per "avere un asso nella manica": "Immagina di giocare a carte. È come tenere nascosta la carta migliore per usarla al momento giusto e sorprendere tutti."
+- **Spiega il Concetto:** Subito dopo l'analogia, collega l'immagine all'idea astratta in modo semplice.
+- **Linguaggio Semplice:** Usa frasi brevissime, vocabolario comune e un tono amichevole. Pensa di spiegarlo a un bambino.
+- **Brevità Massima:** La spiegazione totale non deve superare le 3-4 frasi.
 
-**Parole Correlate:** Per ogni collocazione, elenca 3-5 parole o brevi frasi strettamente correlate (sinonimi, antonimi, termini dello stesso campo semantico). Questo aiuta lo studente a costruire una rete lessicale.
+**Parole Correlate:** Per ogni collocazione, elenca 3-5 parole o brevi frasi strettamente correlate (sinonimi, antonimi, ecc.). Per ogni parola correlata, fornisci una brevissima frase d'esempio (massimo una frase) che ne mostri l'uso in un contesto semplice e naturale. Questo aiuta gli studenti a consolidare il vocabolario.
 
 ${cefrLevel ?
 `**Adattamento Obbligatorio al Livello CEFR: ${cefrLevel}**
@@ -122,8 +144,21 @@ ${text}
                                     },
                                     parole_correlate: {
                                         type: Type.ARRAY,
-                                        description: "Una lista di 3-5 parole o brevi frasi correlate.",
-                                        items: { type: Type.STRING }
+                                        description: "Una lista di 3-5 parole o brevi frasi correlate, ciascuna con una frase di esempio.",
+                                        items: {
+                                            type: Type.OBJECT,
+                                            properties: {
+                                                parola: {
+                                                    type: Type.STRING,
+                                                    description: "La parola o frase correlata."
+                                                },
+                                                esempio: {
+                                                    type: Type.STRING,
+                                                    description: "Una brevissima frase d'esempio che mostra l'uso della parola correlata."
+                                                }
+                                            },
+                                            required: ["parola", "esempio"]
+                                        }
                                     }
                                 },
                                 required: ["voce", "spiegazione", "frase_originale", "parole_correlate"]
@@ -158,8 +193,16 @@ ${text}
         
         const parsedJson = JSON.parse(jsonString);
 
-        if (!parsedJson.dizionario || !Array.isArray(parsedJson.dizionario)) {
-            throw new Error("Formato JSON della risposta non valido.");
+        if (!parsedJson) {
+            throw new Error("La risposta JSON dall'IA era vuota (null o undefined). L'output non può essere elaborato.");
+        }
+
+        if (!parsedJson.dizionario) {
+            throw new Error("La risposta JSON dall'IA non è valida. Manca il campo radice 'dizionario'. Il formato atteso è: { dizionario: [...] }.");
+        }
+
+        if (!Array.isArray(parsedJson.dizionario)) {
+            throw new Error(`La risposta JSON dall'IA non è valida. Il campo 'dizionario' dovrebbe essere un array, ma è stato ricevuto un tipo '${typeof parsedJson.dizionario}'.`);
         }
 
         return parsedJson as CollocationsResult;
@@ -168,15 +211,89 @@ ${text}
     }
 };
 
-export interface DeepDiveOptions {
-  cefrLevel?: string;
-  register?: string;
-}
-
 export const generateDeepDive = async (item: string, options: DeepDiveOptions = {}): Promise<string> => {
-    const { cefrLevel, register } = options;
-    
-    const prompt = `
+    const { cefrLevel, register, itemContext } = options;
+    const isDictionaryEntry = itemContext && !!itemContext.traduzione_arabo;
+
+    const prompt = isDictionaryEntry ? `
+Agisci come un esperto linguista e tutor bilingue (italiano-arabo), con una profonda conoscenza della didattica L2. Il tuo obiettivo è creare una guida di approfondimento bilingue, completa e utile, sulla voce di dizionario fornita, usando una struttura analitica dettagliata.
+
+**Input:**
+- **Termine Italiano:** "${item}"
+- **Traduzione Arabo:** "${itemContext.traduzione_arabo}"
+- **Definizione Italiano:** "${itemContext.spiegazione}"
+- **Definizione Arabo:** "${itemContext.definizione_arabo}"
+- **Esempio Italiano:** "${itemContext.frase_originale}"
+- **Esempio Arabo:** "${itemContext.esempio_arabo}"
+${cefrLevel ? `- **Livello CEFR di riferimento per lo studente:** ${cefrLevel}` : ''}
+${register && register !== 'Neutro' ? `- **Registro di riferimento per lo studente:** ${register}` : ''}
+
+**Istruzioni:**
+1.  **Stile:** Usa un tono amichevole. Per le spiegazioni, usa rigorosamente il Metodo Feynman: parti da un'analogia o un'immagine semplice e concreta, usa un linguaggio facilissimo e mantieni la spiegazione entro 3-4 frasi.
+2.  **Lingua e Formattazione:** Per ogni punto o paragrafo all'interno di una sezione, fornisci prima la versione italiana, seguita immediatamente dalla sua traduzione araba sulla riga successiva, formattata in questo modo: \`AR: [testo arabo]\`. Questo formato è obbligatorio per ogni pezzo di contenuto. Non usare più il separatore \`---ARABIC---\`.
+3.  **Struttura:** Organizza la risposta in sezioni usando \`###\` come intestazione. La risposta deve essere in formato Markdown.
+
+**Sezioni Obbligatorie:**
+
+### 🇮🇹 Panoramica / 🇦🇪 نظرة عامة
+Spiega il concetto base di "${item}", cos'è e quando si usa.
+AR: [Spiega il concetto base in arabo.]
+
+### 🇮🇹 Dettagli Grammaticali / 🇦🇪 تفاصيل نحوية
+- **Tipo:** (es. Sostantivo, Verbo, Aggettivo, Locuzione avverbiale)
+AR: **النوع:** [Tipo in arabo]
+- **Per Sostantivi:** Genere: [maschile/femminile], Plurale: [plurale]
+AR: **للاسماء:** [informazioni su genere e plurale in arabo]
+- **Per Verbi:**
+  - io [coniugazione]
+  - tu [coniugazione]
+  - lui/lei [coniugazione]
+AR: **للافعال:**
+  - أنا [coniugazione araba]
+  - أنت [coniugazione araba]
+  - هو/هي [coniugazione araba]
+
+### 🇮🇹 Etimologia e Radice / 🇦🇪 أصل الكلمة والجذر
+Spiega brevemente l'origine etimologica della parola italiana.
+AR: [Identifica la radice triconsonantica (الجذر الثلاثي) della parola araba e mostra 1-2 parole correlate dalla stessa radice.]
+
+### 🇮🇹 Livello e Registro / 🇦🇪 المستوى والسياق
+- **Livello QCER Stimato:** Stima il livello QCER dell'espressione italiana.
+AR: **المستوى:** [Stima il livello dell'espressione araba]
+- **Registro Principale:** Indica il registro più comune (es. Formale, Informale) per l'espressione italiana.
+AR: **السياق:** [Indica il registro più comune per l'espressione araba, spiegando eventuali differenze con l'italiano.]
+
+### 🇮🇹 Espansioni e Collocazioni Correlate / 🇦🇪 تعابير مترابطة
+- [Espressione correlata 1] - [Esempio 1]
+AR: [Traduzione/Equivalente arabo 1] - [Esempio arabo 1]
+- [Espressione correlata 2] - [Esempio 2]
+AR: [Traduzione/Equivalente arabo 2] - [Esempio arabo 2]
+
+### 🇮🇹 Variazioni e Sfumature / 🇦🇪 بدائل وفروق دقيقة
+- [Alternativa 1]: [Spiegazione sfumatura 1]
+AR: [Equivalente arabo 1]: [Spiegazione sfumatura araba 1]
+- [Alternativa 2]: [Spiegazione sfumatura 2]
+AR: [Equivalente arabo 2]: [Spiegazione sfumatura araba 2]
+
+### ⚠️ Consigli d'Uso ed Errori Comuni per Arabofoni
+[Consiglio/Errore comune 1 in italiano]
+AR: [Stesso consiglio/errore in arabo]
+[Consiglio/Errore comune 2 in italiano]
+AR: [Stesso consiglio/errore in arabo]
+
+### 🇮🇹 Mappa Lessicale / 🇦🇪 خريطة المفردات
+- **Verbi comuni:** [verbi in italiano]
+AR: **الأفعال الشائعة:** [verbi in arabo]
+- **Nomi comuni:** [nomi in italiano]
+AR: **الأسماء الشائعة:** [nomi in arabo]
+- **Aggettivi/Avverbi comuni:** [aggettivi/avverbi in italiano]
+AR: **الصفات/الظروف الشائعة:** [aggettivi/avverbi in arabo]
+
+**Vincoli:**
+- Usa sempre il formato \`AR: [testo arabo]\` sulla riga successiva per ogni contenuto bilingue.
+- Mantieni la guida focalizzata e utile a livello didattico.`
+:
+`
 Agisci come un esperto linguista e tutor di italiano L2. Il tuo obiettivo è creare una guida di approfondimento chiara e utile su un dato tema o una specifica collocazione.
 
 **Input:**
@@ -185,7 +302,7 @@ ${cefrLevel ? `- **Livello CEFR di riferimento per lo studente:** ${cefrLevel}` 
 ${register && register !== 'Neutro' ? `- **Registro di riferimento per lo studente:** ${register}` : ''}
 
 **Istruzioni:**
-1.  **Stile:** Usa un tono amichevole e diretto (io/tu). Spiega i concetti con analogie semplici (stile Feynman).
+1.  **Stile:** Usa un tono amichevole e diretto (io/tu). Spiega i concetti complessi con il Metodo Feynman: parti da un'analogia semplice e concreta (es. "Immagina di...") e usa un linguaggio facilissimo, per un massimo di 3-4 frasi.
 2.  **Lingua:** Italiano standard, con esempi pratici e di uso comune.
 3.  **Struttura:** Organizza la risposta in sezioni usando \`###\` come intestazione. La risposta deve essere in formato Markdown.
 
@@ -254,7 +371,7 @@ ${register && register !== 'Neutro' ? `**Registro di riferimento per lo studente
 **Sezioni Obbligatorie:**
 
 ### Panoramica del Tema: "${themeName}"
-Spiega il tema in generale, collegandolo direttamente a come le collocazioni fornite lo rappresentano. Mostra come queste espressioni, insieme, dipingono un quadro del tema.
+Spiega il tema in generale, usando un'analogia semplice (stile Feynman) per introdurne l'essenza. Collega l'analogia a come le collocazioni fornite rappresentano il tema, mostrando come, insieme, dipingono un quadro dell'argomento.
 
 ### Livello e Registro del Tema
 - **Livello QCER Stimato:** Basandoti sulle collocazioni fornite, stima il livello QCER (es. B1-B2) in cui questo tema è più rilevante e utile.
@@ -262,7 +379,7 @@ Spiega il tema in generale, collegandolo direttamente a come le collocazioni for
 
 ### Analisi delle Collocazioni Chiave
 Seleziona 3-5 collocazioni dalla lista che ritieni più rappresentative o didatticamente interessanti. Per ciascuna, approfondisci:
-- **Significato nel contesto del tema:** Come questa collocazione specifica illumina un aspetto di "${themeName}"?
+- **Significato nel contesto del tema:** Spiega come questa collocazione specifica illumina un aspetto di "${themeName}", usando un'analogia semplice (stile Feynman).
 - **Esempio d'uso aggiuntivo:** Fornisci una NUOVA frase d'esempio, diversa da quelle implicite nelle spiegazioni, che sia adatta al livello e registro richiesti.
 
 ### Connessioni e Pattern Linguistici
@@ -326,7 +443,7 @@ export const generateCardDeepDive = async (item: string): Promise<CardDeepDiveRe
             },
             registro_e_sfumature: {
                 type: Type.STRING,
-                description: "Una spiegazione concisa (1-2 frasi) del registro (formale/informale/neutro) e delle principali sfumature di significato."
+                description: "Una spiegazione concisa (massimo 3-4 frasi) del registro e delle sfumature, usando un'analogia semplice in stile Feynman."
             },
             alternative_comuni: {
                 type: Type.ARRAY,
@@ -335,7 +452,7 @@ export const generateCardDeepDive = async (item: string): Promise<CardDeepDiveRe
                     type: Type.OBJECT,
                     properties: {
                         alternativa: { type: Type.STRING, description: "La parola o espressione alternativa." },
-                        spiegazione: { type: Type.STRING, description: "Una brevissima spiegazione della differenza o sfumatura." }
+                        spiegazione: { type: Type.STRING, description: "Una brevissima spiegazione della differenza, usando un'analogia semplice se possibile." }
                     },
                     required: ["alternativa", "spiegazione"]
                 }
@@ -374,20 +491,21 @@ Rispondi ESCLUSIVAMENTE con un oggetto JSON che segua lo schema fornito.
     }
 };
 
-export const answerQuestionAboutCollocation = async (context: string, question: string): Promise<string> => {
+export const answerQuestionAboutCollocation = async (context: string, question: string): Promise<{ answer: string; chunks: GroundingChunk[] }> => {
     const prompt = `
 Agisci come un tutor di lingua italiana esperto e preciso.
 Ti viene fornito un testo di approfondimento (il "contesto") su una specifica collocazione o tema linguistico.
-Il tuo unico compito è rispondere alla domanda dell'utente basandosi ESCLUSIVAMENTE sulle informazioni contenute nel contesto fornito.
+Il tuo compito è rispondere alla domanda dell'utente.
 
-**Regole Obbligatorie:**
-1.  **Non usare conoscenze esterne.** La tua risposta deve derivare al 100% dal testo del contesto.
-2.  Se la risposta non è presente nel contesto, rispondi onestamente: "Mi dispiace, ma la risposta a questa domanda non si trova nel testo di approfondimento fornito."
-3.  Sii conciso e vai dritto al punto.
-4.  Rispondi in italiano.
+**Istruzioni:**
+1.  **Dai priorità al contesto:** Basa la tua risposta principalmente sulle informazioni contenute nel testo di approfondimento fornito. Se la risposta è lì, usala.
+2.  **Usa la ricerca web se necessario:** Se il contesto non contiene la risposta, o se può essere arricchita con informazioni più recenti o dettagliate, usa la ricerca web per trovare le informazioni.
+3.  **Sintetizza:** Combina le informazioni dal contesto e dalla ricerca web in una risposta chiara e coesa.
+4.  **Sii conciso:** Vai dritto al punto.
+5.  **Lingua:** Rispondi in italiano.
 
 ---
-**CONTESTO:**
+**CONTESTO FORNITO:**
 ${context}
 ---
 
@@ -401,10 +519,15 @@ ${context}
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
-                temperature: 0.1,
+                temperature: 0.3,
+                tools: [{googleSearch: {}}],
             },
         });
-        return response.text.trim();
+        
+        const answer = response.text.trim();
+        const chunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[];
+
+        return { answer, chunks };
     } catch (error) {
         throw new Error(handleGeminiError(error, `la risposta alla domanda "${question}"`));
     }
@@ -416,7 +539,7 @@ export const explainTheme = async (theme: string): Promise<ThemeExplanationResul
         properties: {
             explanation: {
                 type: Type.STRING,
-                description: "Una spiegazione molto concisa (massimo 2 frasi) del tema in italiano, come se fosse una definizione da dizionario."
+                description: "Una spiegazione del tema in stile Feynman (massimo 3-4 frasi): usa un'analogia semplice, un linguaggio facile e vai dritto al punto."
             },
             related_collocations: {
                 type: Type.ARRAY,
@@ -425,7 +548,7 @@ export const explainTheme = async (theme: string): Promise<ThemeExplanationResul
                     type: Type.OBJECT,
                     properties: {
                         voce: { type: Type.STRING, description: "La collocazione correlata." },
-                        spiegazione: { type: Type.STRING, description: "Una brevissima spiegazione (1 frase) della collocazione." }
+                        spiegazione: { type: Type.STRING, description: "Una brevissima spiegazione della collocazione (1-2 frasi) in stile Feynman, con un'analogia semplice." }
                     },
                     required: ["voce", "spiegazione"]
                 }
@@ -436,8 +559,8 @@ export const explainTheme = async (theme: string): Promise<ThemeExplanationResul
 
     const prompt = `
 Agisci come un esperto di linguistica e lessicografo. Per il tema fornito:
-1.  Fornisci una spiegazione molto concisa (massimo 2 frasi) del tema, come se lo stessi definendo in un dizionario.
-2.  Suggerisci 3-5 collocazioni italiane comuni e utili strettamente correlate al tema, ognuna con una brevissima spiegazione.
+1.  Fornisci una spiegazione del tema in stile Feynman (massimo 3-4 frasi): parti da un'analogia semplice e usa un linguaggio facile.
+2.  Suggerisci 3-5 collocazioni italiane comuni e utili strettamente correlate al tema, ognuna con una brevissima spiegazione in stile Feynman.
 
 Tema: "${theme}"
 
@@ -469,18 +592,11 @@ export const generateText = async (options: { cefrLevel?: string, topic?: string
     let prompt: string;
 
     if (useSearch) {
-        // Web search needs a concrete topic
-        if (!chosenTopic) {
-             const topics = [
-                "l'impatto dell'intelligenza artificiale sul mercato del lavoro",
-                "le sfide dell'economia circolare",
-                "l'evoluzione della cucina italiana nel mondo",
-                "l'importanza della biodiversità per il pianeta",
-                "il futuro delle città sostenibili",
-            ];
-            chosenTopic = topics[Math.floor(Math.random() * topics.length)];
+        if (chosenTopic) {
+            prompt = `Agendo come un redattore esperto, scrivi un testo informativo e ben strutturato di circa 250 parole in italiano sull'argomento: "${chosenTopic}". Basa la tua risposta su informazioni verificate tramite ricerca web. ${cefrLevel ? `Adatta la difficoltà al livello ${cefrLevel} del QCER.` : ''} ${registerPrompt} Rispondi solo con il testo. Non includere titoli.`;
+        } else {
+            prompt = `Agendo come un blogger o un redattore di una rivista online, scegli un argomento casuale e di interesse generale (es. viaggi, cibo, tecnologia, hobby, cultura pop). Usando la ricerca web per ottenere informazioni aggiornate e interessanti, scrivi un testo con un tono informale e coinvolgente di circa 200 parole in italiano su quell'argomento. ${cefrLevel ? `Adatta la difficoltà del testo al livello ${cefrLevel} del QCER.` : ''} ${register && register !== 'Neutro' ? `Il registro deve essere ${register}.` : 'Il registro deve essere colloquiale e informale.'} Rispondi solo ed esclusivamente con il testo generato. Non includere il titolo dell'argomento o altre frasi introduttive.`;
         }
-        prompt = `Agendo come un redattore esperto, scrivi un testo informativo e ben strutturato di circa 250 parole in italiano sull'argomento: "${chosenTopic}". Basa la tua risposta su informazioni verificate tramite ricerca web. ${cefrLevel ? `Adatta la difficoltà al livello ${cefrLevel} del QCER.` : ''} ${registerPrompt} Rispondi solo con il testo. Non includere titoli.`;
     } else if (chosenTopic) {
         // Standard generation with a provided topic
         prompt = `Scrivi un paragrafo in italiano sull'argomento: "${chosenTopic}". ${cefrLevel ? `Adatta la difficoltà al livello ${cefrLevel} del QCER.` : ''} ${registerPrompt} Rispondi solo con il paragrafo.`;
@@ -680,7 +796,7 @@ Rispondi SOLO con il JSON strutturato secondo lo schema fornito.
     }
 };
 
-export const generateRelatedCollocations = async (item: string): Promise<RelatedCollocation[]> => {
+export const generateRelatedCollocations = async (item: string, options: { cefrLevel: string; register: string; }): Promise<RelatedCollocation[]> => {
     const schema = {
         type: Type.ARRAY,
         items: {
@@ -692,7 +808,7 @@ export const generateRelatedCollocations = async (item: string): Promise<Related
                 },
                 spiegazione: {
                     type: Type.STRING,
-                    description: "Una breve spiegazione (1-2 frasi) della collocazione."
+                    description: "Una breve spiegazione della collocazione (massimo 3-4 frasi) in stile Feynman, usando un'analogia semplice."
                 }
             },
             required: ["voce", "spiegazione"]
@@ -700,11 +816,12 @@ export const generateRelatedCollocations = async (item: string): Promise<Related
     };
 
     const prompt = `
-Agisci come un lessicografo italiano. Data la seguente parola chiave o collocazione, suggerisci 3-5 collocazioni italiane strettamente correlate, che un apprendista troverebbe utili.
+Agisci come un lessicografo italiano. Data la seguente parola chiave o collocazione, suggerisci 3-5 collocazioni italiane strettamente correlate.
+Adatta la complessità e lo stile dei suggerimenti a uno studente di livello ${options.cefrLevel} e a un registro ${options.register}.
 
 Parola chiave: "${item}"
 
-Per ogni suggerimento, fornisci la collocazione e una brevissima spiegazione.
+Per ogni suggerimento, fornisci la collocazione e una brevissima spiegazione in stile Feynman (massimo 3-4 frasi, con un'analogia semplice).
 Fornisci la risposta esclusivamente in formato JSON, seguendo lo schema fornito. Non includere la parola chiave originale nei risultati.
 `;
 
@@ -725,7 +842,7 @@ Fornisci la risposta esclusivamente in formato JSON, seguendo lo schema fornito.
     }
 };
 
-export const generateCollocationCard = async (topic: string): Promise<GeneratedCardData> => {
+export const generateCollocationCard = async (topic: string, options: { cefrLevel: string; register: string; }): Promise<GeneratedCardData> => {
     const schema = {
         type: Type.OBJECT,
         properties: {
@@ -735,7 +852,7 @@ export const generateCollocationCard = async (topic: string): Promise<GeneratedC
             },
             spiegazione: {
                 type: Type.STRING,
-                description: "Una spiegazione chiara e concisa in italiano (2-3 frasi, stile Feynman)."
+                description: "Una spiegazione in stile Feynman (massimo 3-4 frasi): usa un'analogia semplice, un linguaggio facile e vai dritto al punto."
             },
             frase_originale: {
                 type: Type.STRING,
@@ -756,8 +873,8 @@ Input: "${topic}"
 
 Istruzioni:
 1.  **Voce**: Normalizza l'input al suo lemma (es. "preso una decisione" -> "prendere una decisione"). Se è già un lemma, mantienilo.
-2.  **Spiegazione**: Scrivi una spiegazione semplice e chiara, come la spiegheresti a uno studente di livello B1.
-3.  **Frase Originale**: Crea una frase d'esempio realistica e di uso comune.
+2.  **Spiegazione**: Scrivi una spiegazione secondo il Metodo Feynman (massimo 3-4 frasi). Parti da un'analogia semplice e concreta, usa un linguaggio facilissimo e vai dritto al punto. Deve essere adatta a uno studente di livello ${options.cefrLevel}.
+3.  **Frase Originale**: Crea una frase d'esempio realistica e di uso comune, usando un registro ${options.register}.
 4.  **Tema**: Assegna un singolo tema appropriato. Scegli tra una lista di temi comuni come: Lavoro, Economia, Società, Tecnologia, Vita Quotidiana, Cibo, Viaggi, Studio, Politica, Salute.
 
 Fornisci la risposta esclusivamente in formato JSON, seguendo lo schema fornito.
@@ -780,45 +897,43 @@ Fornisci la risposta esclusivamente in formato JSON, seguendo lo schema fornito.
     }
 };
 
-export const explainText = async (text: string): Promise<string> => {
-    const prompt = `
-Agisci come un esperto linguista e tutor di italiano L2. Il tuo obiettivo è fornire una spiegazione completa, chiara e pratica della parola o frase fornita, pensata per uno studente di lingua.
+export const explainText = async (text: string, options: { cefrLevel?: string; register?: string; } = {}): Promise<string> => {
+    const { cefrLevel, register } = options;
+    const systemInstruction = `Agisci come un 'Virgilio' linguistico, un tutor di italiano di livello accademico ossessionato dalla precisione, dalla completezza e dalla chiarezza pedagogica. La tua missione è fornire la risposta DEFINITIVA, onnicomprensiva e multi-prospettica a qualsiasi domanda, anticipando le future curiosità dello studente. Ogni tua risposta deve essere un capolavoro di didattica, non lasciando nulla di intentato. È imperativo che le tue risposte siano sempre dettagliate ed esaustive, trattando tutti gli aspetti e i concetti rilevanti e pertinenti all'interrogativo posto.
 
-Usa Markdown per formattare la tua risposta in sezioni distinte.
+**Struttura della Risposta Obbligatoria:**
+La tua risposta DEVE essere organizzata in modo impeccabile usando Markdown. Segui sempre questa struttura:
 
-TESTO DA SPIEGARE:
----
-${text}
----
+1.  **Risposta Diretta (La Sintesi):** Inizia con una risposta cristallina e diretta alla domanda (massimo 2-3 frasi).
 
-Fornisci la tua risposta strutturata ESATTAMENTE come segue, in italiano:
+2.  **Analisi Enciclopedica:** Dopo la sintesi, fornisci un'analisi dettagliata. **È OBBLIGATORIO includere TUTTE le sezioni pertinenti tra le seguenti** per costruire una spiegazione enciclopedica. Sii creativo, approfondito e non omettere dettagli anche se sembrano secondari.
 
-### Spiegazione (Metodo Feynman)
-Spiega il concetto in modo super semplice, come se lo stessi spiegando a un bambino.
-- **Concetto Base:** Qual è l'idea centrale? (1 frase)
-- **Analogia:** Crea un'immagine mentale o un paragone con qualcosa di quotidiano. (1-2 frasi)
-- **Perché queste parole?:** Se rilevante, spiega perché si usa proprio questa combinazione di parole. (1 frase)
+    *   \`### 📖 Spiegazione Dettagliata\`: Espandi la risposta diretta con maggiori dettagli, logica, contesto e tutte le sfumature necessarie.
+    *   \`### 🏛️ Origine ed Etimologia\`: Racconta la storia della parola o espressione. Da dove viene? Come si è evoluta nel tempo?
+    *   \`### 🎨 Metafore e Analogie Creative (Metodo Feynman)\`: Usa paragoni memorabili, semplici e VISIVI per spiegare il concetto, come se lo stessi spiegando a qualcuno che non ne sa assolutamente nulla.
+    *   \`### 🌍 Contesto Culturale e Pragmatica\`: Spiega il 'non detto', le implicazioni sociali e culturali. In quali contesti sociali è appropriato? Che effetto produce sull'interlocutore?
+    *   \`### 🗣️ Pronuncia e Fonetica\`: Se pertinente, fornisci note sulla pronuncia, suoni difficili per i non madrelingua o accenti particolari.
+    *   \`### ✨ Esempi Pratici e Variazioni\`: Fornisci una lista ricca di frasi di esempio chiare, realistiche e diverse tra loro. Mostra come l'espressione può essere modificata (es. tempi verbali, forma negativa, uso figurato).
+    *   \`### 🔄 Rete Lessicale (Alternative, Sinonimi, Contrari)\`: Crea una rete di parole correlate, spiegando le sottili differenze di significato e registro tra sinonimi, alternative comuni e contrari.
+    *   \`### ⚠️ Errori Comuni e Falsi Amici\`: Evidenzia le trappole tipiche per gli studenti (es. falsi amici con altre lingue, preposizioni sbagliate, errori di concordanza).
+    *   \`### 🧠 Tecniche di Memorizzazione\`: Offri tecniche mnemoniche VISIVE o ASSOCIATIVE per fissare il concetto nella memoria a lungo termine.
+    *   \`### 📰 Dove Trovarla (Nel Mondo Reale)\`: Suggerisci esempi di dove lo studente può trovare questa espressione in uso reale (es. tipo di articoli di giornale, film, canzoni, libri).
+    *   \`### ✍️ Esercizio Pratico Interattivo\`: Proponi un esercizio che richieda all'utente di PRODURRE attivamente lingua, non solo di riconoscere (es. 'Scrivi una frase che descriva...', 'Completa questo mini-dialogo...').
 
-### Contesto d'Uso
-Descrivi in quali situazioni si usa questa espressione.
-- **Registro:** È formale, informale o neutro?
-- **Quando si usa:** Fornisci esempi di contesti (es. "al lavoro, parlando di un progetto", "in una conversazione amichevole", "in un articolo di giornale").
-- **Sfumatura:** C'è una connotazione positiva, negativa o neutra?
+3.  **Stile:** Usa un linguaggio amichevole, incoraggiante ma estremamente preciso. Usa **grassetto** per evidenziare i termini chiave e rendere il testo più leggibile e strutturato.
 
-### Esempi Pratici
-Fornisci 3-5 frasi d'esempio chiare e realistiche che mostrino come usare l'espressione in contesti diversi.
+4.  **Adattamento:** Adatta OBBLIGATORIAMENTE la complessità del linguaggio e degli esempi al livello QCER (${cefrLevel || 'B1'}) e al registro (${register || 'Neutro'}) richiesti.
 
-### Alternative Comuni
-Elenca 1-2 sinonimi o modi alternativi per dire la stessa cosa, spiegando brevemente le differenze di sfumatura.
-
-Mantieni un tono amichevole e didattico. La tua risposta deve contenere solo il risultato formattato, senza frasi introduttive.
-`;
+La tua risposta deve essere solo il testo in markdown, senza JSON o altre formattazioni.`;
+    
+    const prompt = `Spiega in dettaglio il seguente testo: "${text}"`;
 
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
+                systemInstruction,
                 temperature: 0.4,
             },
         });
@@ -828,12 +943,14 @@ Mantieni un tono amichevole e didattico. La tua risposta deve contenere solo il 
     }
 };
 
-export const analyzeGrammarOfText = async (text: string, cefrLevel?: string): Promise<string> => {
+export const analyzeGrammarOfText = async (text: string, options: { cefrLevel?: string; register?: string } = {}): Promise<string> => {
+    const { cefrLevel, register } = options;
     const prompt = `
 Agisci come un esperto e amichevole professore di grammatica italiana.
 Il tuo compito è fornire un'analisi grammaticale completa e didattica del testo fornito, identificando strutture, coniugazioni verbali e modelli sintattici.
 
 ${cefrLevel ? `Adatta la complessità della tua spiegazione e degli esempi a uno studente di livello ${cefrLevel}.` : ''}
+${register && register !== 'Neutro' ? `Usa un registro ${register} nella tua analisi e negli esempi.` : ''}
 
 TESTO DA ANALIZZARE:
 ---
@@ -877,40 +994,6 @@ Mantieni un tono incoraggiante e didattico.
         return response.text.trim();
     } catch (error) {
         throw new Error(handleGeminiError(error, "l'analisi grammaticale del testo"));
-    }
-};
-
-export const summarizeText = async (text: string, cefrLevel?: string): Promise<string> => {
-    const prompt = `
-Agisci come un abile redattore specializzato nella semplificazione di testi per studenti di italiano.
-
-Obiettivo: Riassumi il seguente testo in modo chiaro, conciso e fedele al contenuto originale.
-
-${cefrLevel ? `Adatta obbligatoriamente la complessità del linguaggio (lessico e sintassi) a uno studente di livello ${cefrLevel}.` : ''}
-
-TESTO DA RIASSUMERE:
----
-${text}
----
-
-Istruzioni:
-- Estrai solo le informazioni essenziali.
-- Mantieni il registro e il tono del testo originale.
-- Il riassunto deve essere un paragrafo unico e scorrevole.
-- La tua risposta deve contenere ESCLUSIVAMENTE il testo del riassunto, senza frasi introduttive come "Ecco il riassunto:".
-`;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                temperature: 0.4,
-            },
-        });
-        return response.text.trim();
-    } catch (error) {
-        throw new Error(handleGeminiError(error, "la generazione del riassunto"));
     }
 };
 
@@ -1032,75 +1115,190 @@ Fornisci la risposta esclusivamente in formato JSON, seguendo lo schema fornito.
     }
 };
 
-export const generateItalianArabicDictionary = async (text: string, cefrLevel?: string): Promise<DictionaryResult> => {
+export const generateVoiceScenarios = async (topic: string, cefrLevel: string, register: string, context?: string | null): Promise<VoiceScenariosResult> => {
     const schema = {
         type: Type.OBJECT,
         properties: {
-            dizionario_approfondito: {
+            scenari: {
                 type: Type.ARRAY,
-                description: "Un array di voci del dizionario italiano-arabo.",
+                description: "A list of voice role-play scenarios.",
                 items: {
                     type: Type.OBJECT,
                     properties: {
-                        termine_italiano: {
-                            type: Type.STRING,
-                            description: "Il termine o la frase chiave in italiano, normalizzato al lemma."
-                        },
-                        traduzione_arabo: {
-                            type: Type.STRING,
-                            description: "La traduzione accurata del termine in arabo."
-                        },
-                        definizione_italiano: {
-                            type: Type.STRING,
-                            description: "Una definizione chiara e concisa del termine in italiano."
-                        },
-                        definizione_arabo: {
-                            type: Type.STRING,
-                            description: "Una definizione chiara e concisa del termine in arabo."
-                        },
-                        esempio_italiano: {
-                            type: Type.STRING,
-                            description: "Una frase di esempio che utilizza il termine in italiano."
-                        },
-                        esempio_arabo: {
-                            type: Type.STRING,
-                            description: "La traduzione della frase di esempio in arabo."
-                        },
-                        pronuncia_arabo: {
-                            type: Type.STRING,
-                            description: "La traslitterazione fonetica della pronuncia araba (es. 'marhaban')."
-                        },
-                        contesto_culturale: {
-                            type: Type.STRING,
-                            description: "Una breve nota (1-2 frasi) sul contesto culturale o le differenze d'uso tra italiano e arabo. Spiega se è formale, informale, o ha connotazioni particolari."
-                        }
+                        title: { type: Type.STRING, description: "A short, engaging title for the scenario (e.g., 'Al Ristorante')." },
+                        description: { type: Type.STRING, description: "A brief, one-sentence description for the user of what the scenario is about." },
+                        system_instruction: { type: Type.STRING, description: "A detailed system instruction for the AI tutor, defining its role and objective. This will be used in a Gemini Live API call." }
                     },
-                    required: ["termine_italiano", "traduzione_arabo", "definizione_italiano", "definizione_arabo", "esempio_italiano", "esempio_arabo", "pronuncia_arabo", "contesto_culturale"]
+                    required: ["title", "description", "system_instruction"]
                 }
             }
         },
-        required: ["dizionario_approfondito"]
+        required: ["scenari"]
+    };
+
+    const prompt = context
+        ? `
+Agisci come un tutor di lingua italiana che progetta attività di conversazione. Il tuo compito è creare uno scenario di conversazione vocale per un utente che vuole discutere e approfondire il contenuto di un testo esplicativo fornito.
+
+**Contenuto di riferimento (il testo da discutere):**
+---
+${context}
+---
+
+**Argomento Principale:** "${topic}"
+**Livello Studente:** ${cefrLevel}
+**Registro:** ${register}
+
+**Istruzioni:**
+1.  Crea **UN UNICO** scenario di conversazione (non un role-play).
+2.  **title:** Deve essere "Discussione Approfondita".
+3.  **description:** Deve essere "Parliamo insieme del testo che hai appena letto per assicurarci che tu abbia capito tutto."
+4.  **system_instruction:** Crea un'istruzione di sistema DETTAGLIATA per il tutor IA.
+    -   Il ruolo dell'IA è quello di un tutor amichevole che verifica la comprensione e stimola la conversazione.
+    -   L'IA deve basare la conversazione ESCLUSIVAMENTE sul contenuto fornito nel "Contenuto di riferimento".
+    -   **L'IA deve iniziare la conversazione** con un saluto e una domanda aperta sul testo, ad esempio: "Ciao! Ho visto che hai letto l'approfondimento su '${topic}'. C'è qualcosa in particolare che ti ha colpito o che vorresti discutere?"
+    -   L'obiettivo è far parlare lo studente, fargli riassumere concetti con parole sue, chiedere chiarimenti e usare il lessico del testo.
+    -   Il linguaggio dell'IA deve essere calibrato per un livello ${cefrLevel} e un registro ${register}.
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON che segua lo schema fornito.
+`
+        : `
+Agisci come un autore di materiale didattico per l'apprendimento dell'italiano. Il tuo compito è creare 2-3 scenari di role-play vocale per un utente che vuole praticare l'argomento "${topic}".
+
+**Istruzioni:**
+1.  Crea 2-3 scenari distinti e creativi in cui l'utente possa usare naturalmente il concetto di "${topic}".
+2.  Per ogni scenario, fornisci:
+    *   **title:** Un titolo breve e accattivante (es. "Chiedere Indicazioni").
+    *   **description:** Una descrizione di una riga per l'utente (es. "Sei un turista a Roma e devi chiedere come arrivare al Colosseo.").
+    *   **system_instruction:** Un'istruzione di sistema DETTAGLIATA per il tutor IA (che verrà utilizzata in una chiamata all'API Gemini Live). Questa istruzione deve definire chiaramente il ruolo dell'IA, il contesto, l'obiettivo della conversazione e come deve interagire con l'utente. È OBBLIGATORIO che l'IA inizi la conversazione. Deve essere calibrata per un livello ${cefrLevel} e un registro ${register}. Ad esempio: "Sei un passante amichevole a Roma. L'utente è un turista. Inizia tu la conversazione salutandolo e chiedendogli se ha bisogno di aiuto. L'obiettivo è guidare l'utente e praticare il lessico relativo alle direzioni. Sii paziente e incoraggiante."
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON che segua lo schema fornito.
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.8,
+            },
+        });
+        const jsonString = response.text.trim();
+        return JSON.parse(jsonString) as VoiceScenariosResult;
+    } catch (error) {
+        throw new Error(handleGeminiError(error, `la generazione degli scenari vocali per "${topic}"`));
+    }
+};
+
+export const analyzeConversationPerformance = async (userTranscript: string, scenarioContext: string, cefrLevel: string, register: string): Promise<string> => {
+    const prompt = `
+Agisci come un tutor di lingua italiana esperto, amichevole e incoraggiante. Il tuo compito è analizzare la performance di uno studente in una conversazione di role-playing e fornire un feedback costruttivo.
+
+**Contesto dello Scenario:**
+${scenarioContext}
+
+**Trascrizione delle battute dello studente:**
+---
+${userTranscript}
+---
+
+**Livello dello studente (QCER):** ${cefrLevel}
+**Registro richiesto:** ${register}
+
+**Istruzioni:**
+1.  **Analisi:** Leggi attentamente la trascrizione dello studente. Analizza la grammatica, la scelta del lessico (inclusa la pertinenza all'argomento), l'uso delle collocazioni e la fluidità generale.
+2.  **Feedback Strutturato:** Fornisci il tuo feedback in formato Markdown. La tua risposta DEVE essere organizzata nelle seguenti sezioni:
+    *   \`### 👍 Punti di Forza\`: Inizia in modo positivo. Evidenzia 1-2 cose che lo studente ha fatto bene (es. "Ottimo uso del congiuntivo qui!", "Hai usato l'espressione '___' in modo molto naturale.").
+    *   \`### 🎯 Aree di Miglioramento\`: Identifica 1-3 punti principali su cui lo studente può migliorare. Sii specifico. Per ogni punto:
+        *   Cita la frase originale dello studente.
+        *   Spiega l'errore o l'imprecisione in modo semplice.
+        *   Fornisci la versione corretta o più naturale.
+    *   \`### ✨ Suggerimenti per la Prossima Volta\`: Offri 1-2 consigli pratici o suggerimenti di espressioni/collocazioni alternative che lo studente avrebbe potuto usare per arricchire la conversazione.
+3.  **Tono:** Mantieni un tono costruttivo e motivazionale. L'obiettivo è aiutare lo studente a imparare, non a sentirsi giudicato.
+4.  **Adattamento:** Calibra la complessità delle tue spiegazioni al livello QCER dello studente.
+
+Rispondi solo con l'analisi in formato Markdown.`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                temperature: 0.6,
+            },
+        });
+        return response.text.trim();
+    } catch (error) {
+        throw new Error(handleGeminiError(error, "l'analisi della performance della conversazione"));
+    }
+};
+
+
+export const generateItalianArabicDictionary = async (text: string, options: { cefrLevel?: string; register?: string } = {}): Promise<DictionaryResult> => {
+    const { cefrLevel, register } = options;
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            dizionario_tematico: {
+                type: Type.ARRAY,
+                description: "Un dizionario di voci italiano-arabo, organizzato per temi.",
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        tema: { type: Type.STRING, description: "Il tema a cui appartengono le voci del dizionario." },
+                        voci: {
+                            type: Type.ARRAY,
+                            description: "Una lista di voci del dizionario per il tema specificato.",
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    termine_italiano: { type: Type.STRING, description: "Il termine o la frase chiave in italiano, normalizzato al lemma." },
+                                    traduzione_arabo: { type: Type.STRING, description: "La traduzione accurata del termine in arabo." },
+                                    definizione_italiano: { type: Type.STRING, description: "Una definizione chiara e concisa del termine in italiano." },
+                                    definizione_arabo: { type: Type.STRING, description: "Una definizione chiara e concisa del termine in arabo." },
+                                    esempio_italiano: { type: Type.STRING, description: "Una frase di esempio che utilizza il termine in italiano." },
+                                    esempio_arabo: { type: Type.STRING, description: "La traduzione della frase di esempio in arabo." },
+                                    pronuncia_arabo: { type: Type.STRING, description: "La traslitterazione fonetica della pronuncia araba (es. 'marhaban')." },
+                                    contesto_culturale: { type: Type.STRING, description: "Una breve nota (1-2 frasi) sul contesto culturale o le differenze d'uso tra italiano e arabo." }
+                                },
+                                required: ["termine_italiano", "traduzione_arabo", "definizione_italiano", "definizione_arabo", "esempio_italiano", "esempio_arabo", "pronuncia_arabo", "contesto_culturale"]
+                            }
+                        }
+                    },
+                    required: ["tema", "voci"]
+                }
+            }
+        },
+        required: ["dizionario_tematico"]
     };
 
     const prompt = `
 Agisci come un esperto lessicografo e traduttore bilingue, specializzato in italiano e arabo, con un focus sulla didattica per studenti.
 
-Obiettivo: Dal testo italiano fornito, estrai i termini e le espressioni chiave e crea un dizionario approfondito italiano-arabo.
+Obiettivo: Dal testo fornito, estrai in modo **esaustivo** le **collocazioni** (combinazioni di 2-4 parole, es. "prendere una decisione", "tenere in considerazione") più importanti e didatticamente rilevanti. Dai priorità assoluta alle collocazioni rispetto ai termini singoli. Includi termini singoli solo se sono eccezionalmente importanti e non fanno parte di una collocazione più ampia. Per ogni voce estratta, crea una voce di dizionario approfondito italiano-arabo.
+
+**Raggruppamento per Tema:**
+- Inferisci 3-5 temi principali dal testo (es. Economia, Società, Tecnologia).
+- Assegna ogni voce a un tema pertinente. Organizza l'output per temi.
 
 ${cefrLevel ? `**Adattamento Obbligatorio al Livello CEFR: ${cefrLevel}**
-È fondamentale che la tua analisi sia calibrata per uno studente di livello ${cefrLevel}. Seleziona i termini più rilevanti per questo livello.` : ''}
+È fondamentale che la tua analisi sia calibrata per uno studente di livello ${cefrLevel}. Seleziona termini appropriati per questo livello.` : ''}
+${register && register !== 'Neutro' ? `**Adattamento Obbligatorio al Registro: ${register}**
+È fondamentale che il registro (formale, informale, etc.) della tua analisi sia calibrato su ${register}.` : ''}
 
 Istruzioni per ogni voce del dizionario:
-1.  **termine_italiano**: Estrai una parola o una breve frase chiave dal testo. Normalizzala alla sua forma base (lemma).
-2.  **traduzione_arabo**: Fornisci la traduzione più accurata e contestualmente appropriata in arabo, con la scrittura araba corretta.
-3.  **definizione_italiano**: Scrivi una definizione chiara e semplice del termine in italiano, adatta a uno studente.
+1.  **termine_italiano**: Usa il termine estratto. Normalizzalo alla sua forma base (lemma) se necessario.
+2.  **traduzione_arabo**: Fornisci la traduzione più accurata e contestualmente appropriata in arabo.
+3.  **definizione_italiano**: Scrivi una definizione chiara e semplice del termine in italiano.
 4.  **definizione_arabo**: Scrivi una definizione chiara e semplice del termine in arabo.
-5.  **esempio_italiano**: Crea una frase d'esempio naturale in italiano che mostri come usare il termine.
+5.  **esempio_italiano**: Crea una frase d'esempio **autentica, comune e didatticamente valida** in italiano. La frase DEVE suonare come parlerebbe un madrelingua in un contesto reale. Evita frasi artificiali o create solo per contenere il termine. La naturalezza è l'obiettivo principale.
 6.  **esempio_arabo**: Traduci la frase d'esempio in arabo.
-7.  **pronuncia_arabo**: Fornisci una traslitterazione fonetica della traduzione araba per aiutare nella pronuncia (es. 'kitab', 'shukran').
-8.  **contesto_culturale**: Fornisci una breve nota (1-2 frasi) sul contesto culturale, il registro (formale/informale) o le differenze d'uso tra l'italiano e l'arabo. Se non ci sono differenze significative, descrivi il contesto d'uso tipico.
+7.  **pronuncia_arabo**: Fornisci una traslitterazione fonetica della traduzione araba.
+8.  **contesto_culturale**: Fornisci una breve nota sul contesto culturale, il registro o le differenze d'uso.
 
-Quantità: Estrai tra 15 e 25 termini chiave dal testo, dando priorità a quelli più utili e frequenti.
+Quantità: Estrai il maggior numero possibile di collocazioni rilevanti dal testo, idealmente tra 15 e 25, per coprire in modo esauriente il contenuto. Se il testo è breve o contiene poche collocazioni, estraine meno, ma sforzati di essere il più completo possibile. Se il testo fornito è un singolo termine, analizza solo quello.
 
 Lingua: La tua intera risposta deve essere in italiano e arabo dove specificato, formattata come JSON secondo lo schema fornito.
 
@@ -1124,8 +1322,8 @@ ${text}
         const jsonString = response.text.trim();
         const parsedJson = JSON.parse(jsonString);
 
-        if (!parsedJson.dizionario_approfondito || !Array.isArray(parsedJson.dizionario_approfondito)) {
-            throw new Error("Formato JSON della risposta non valido per il dizionario.");
+        if (!parsedJson.dizionario_tematico || !Array.isArray(parsedJson.dizionario_tematico)) {
+            throw new Error("Formato JSON della risposta non valido per il dizionario tematico.");
         }
 
         return parsedJson as DictionaryResult;
@@ -1235,7 +1433,7 @@ export const improveSentence = async (sentence: string, targetCollocation?: stri
       },
       explanation: {
         type: Type.STRING,
-        description: "Una breve spiegazione (1-2 frasi) del perché la nuova frase è migliore o più naturale, concentrandosi sull'uso della collocazione."
+        description: "Una spiegazione in stile Feynman (massimo 3-4 frasi) del perché la nuova frase è migliore, usando un'analogia semplice per illustrare la naturalezza della collocazione."
       }
     },
     required: ["improved_sentence", "collocation_used", "explanation"]
@@ -1255,7 +1453,7 @@ Istruzioni:
 1. Analizza la frase originale per capirne il significato e l'intento.
 2. Scegli la collocazione italiana più naturale e adatta per esprimere quel concetto. Se una collocazione è stata suggerita, usala se si adatta bene al contesto. Altrimenti, scegline una migliore.
 3. Riscrivi la frase in modo che suoni come parlerebbe un madrelingua, integrando la collocazione scelta. Mantieni il significato originale.
-4. Fornisci una breve spiegazione del miglioramento, focalizzandosi sul perché la collocazione scelta rende la frase più efficace o naturale.
+4. Fornisci una spiegazione in stile Feynman (massimo 3-4 frasi) del miglioramento, usando un'analogia semplice per spiegare perché la collocazione scelta rende la frase più naturale.
 
 Rispondi ESCLUSIVAMENTE con un oggetto JSON che segua lo schema fornito.
 `;
@@ -1277,8 +1475,65 @@ Rispondi ESCLUSIVAMENTE con un oggetto JSON che segua lo schema fornito.
     }
 };
 
-export const generateAdditionalExample = async (collocation: Collocation): Promise<string> => {
-    const prompt = `Data la collocazione "${collocation.voce}", crea una NUOVA frase d'esempio, diversa da quella originale ("${collocation.frase_originale}"). La frase deve essere naturale per un livello B1/B2 e usare la collocazione. Rispondi SOLO con la nuova frase.`;
+export const improveText = async (text: string, options: { cefrLevel: string; register: string }): Promise<ImprovedTextResult> => {
+  const schema = {
+    type: Type.OBJECT,
+    properties: {
+      improved_text: {
+        type: Type.STRING,
+        description: "Il testo originale, riscritto in modo impeccabile per suonare più naturale, idiomatico e stilisticamente appropriato."
+      },
+      explanation_of_changes: {
+        type: Type.STRING,
+        description: "Un'analisi dettagliata in formato Markdown delle modifiche. Per ogni modifica, spiega il motivo del miglioramento usando lo stile Feynman (analogie semplici per illustrare la naturalezza o lo stile)."
+      }
+    },
+    required: ["improved_text", "explanation_of_changes"]
+  };
+
+  const prompt = `
+Agisci come un esperto editor e tutor di lingua italiana, con una profonda conoscenza delle sfumature lessicali e stilistiche.
+
+Obiettivo: Migliora il testo fornito per renderlo perfettamente naturale, idiomatico e appropriato per il livello e il registro specificati.
+
+Testo Originale:
+---
+${text}
+---
+
+Livello di riferimento (QCER): ${options.cefrLevel}
+Registro linguistico: ${options.register}
+
+Istruzioni:
+1.  **Riscrivi il testo:** Riscrivi l'intero testo per migliorarlo. Correggi errori grammaticali, sintattici e di punteggiatura. Sostituisci parole o frasi innaturali con espressioni più comuni e idiomatiche, incluse collocazioni appropriate. Migliora la fluidità e lo stile generale del testo, adattandolo scrupolosamente al livello QCER e al registro richiesti.
+2.  **Spiega le modifiche:** Fornisci un'analisi dettagliata in formato Markdown delle modifiche più significative che hai apportato.
+    -   Usa una struttura a punti per ogni modifica.
+    -   Per ogni punto, cita la parte originale e quella corretta (es. **Originale:** "ho fatto una scelta" -> **Miglioramento:** "ho preso una decisione").
+    -   Spiega chiaramente il motivo del cambiamento usando lo stile Feynman: usa un'analogia semplice per far capire perché una scelta è più naturale, grammaticalmente corretta o stilisticamente migliore.
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON che segua lo schema fornito.
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.6,
+            },
+        });
+        const jsonString = response.text.trim();
+        return JSON.parse(jsonString) as ImprovedTextResult;
+    } catch (error) {
+        throw new Error(handleGeminiError(error, `il miglioramento del testo`));
+    }
+};
+
+
+export const generateAdditionalExample = async (collocation: Collocation, options: { cefrLevel: string; register: string; }): Promise<string> => {
+    const prompt = `Data la collocazione "${collocation.voce}", crea una NUOVA frase d'esempio, diversa da quella originale ("${collocation.frase_originale}"). La frase deve essere naturale per un livello ${options.cefrLevel}, usare un registro ${options.register} e usare la collocazione. Rispondi SOLO con la nuova frase.`;
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -1428,5 +1683,468 @@ Mantieni il piano conciso, realistico e facile da seguire. La risposta deve esse
         return response.text.trim();
     } catch (error) {
         throw new Error(handleGeminiError(error, "la generazione del piano di studio"));
+    }
+};
+
+export const getTutorResponse = async (history: ConversationTurn[], question: string, cefrLevel: string, register: string): Promise<AITutorResponse> => {
+    const formattedHistory = history
+        .filter(turn => turn.speaker === 'user' || turn.speaker === 'model')
+        .map(turn => `${turn.speaker === 'user' ? 'Utente' : 'Tutor'}: ${turn.text}`)
+        .join('\n');
+
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            response: {
+                type: Type.STRING,
+                description: "La risposta del tutor alla domanda dell'utente."
+            },
+            suggestions: {
+                type: Type.ARRAY,
+                description: "Una lista di 3 domande di approfondimento brevi e pertinenti che l'utente potrebbe fare dopo aver letto la risposta.",
+                items: {
+                    type: Type.STRING
+                }
+            }
+        },
+        required: ["response", "suggestions"]
+    };
+    
+    const systemInstruction = `Agisci come un 'Virgilio' linguistico, un tutor di italiano di livello accademico ossessionato dalla precisione, dalla completezza e dalla chiarezza pedagogica. La tua missione è fornire la risposta DEFINITIVA, onnicomprensiva e multi-prospettica a qualsiasi domanda, anticipando le future curiosità dello studente. Ogni tua risposta deve essere un capolavoro di didattica, non lasciando nulla di intentato. È imperativo che le tue risposte siano sempre dettagliate ed esaustive, trattando tutti gli aspetti e i concetti rilevanti e pertinenti all'interrogativo posto.
+
+**Struttura della Risposta Obbligatoria:**
+La tua risposta DEVE essere organizzata in modo impeccabile usando Markdown. Segui sempre questa struttura:
+
+1.  **Risposta Diretta (La Sintesi):** Inizia con una risposta cristallina e diretta alla domanda (massimo 2-3 frasi).
+
+2.  **Analisi Enciclopedica:** Dopo la sintesi, fornisci un'analisi dettagliata. **È OBBLIGATORIO includere TUTTE le sezioni pertinenti tra le seguenti** per costruire una spiegazione enciclopedica. Sii creativo, approfondito e non omettere dettagli anche se sembrano secondari.
+
+    *   \`### 📖 Spiegazione Dettagliata\`: Espandi la risposta diretta con maggiori dettagli, logica, contesto e tutte le sfumature necessarie.
+    *   \`### 🏛️ Origine ed Etimologia\`: Racconta la storia della parola o espressione. Da dove viene? Come si è evoluta nel tempo?
+    *   \`### 🎨 Metafore e Analogie Creative (Metodo Feynman)\`: Usa paragoni memorabili, semplici e VISIVI per spiegare il concetto, come se lo stessi spiegando a qualcuno che non ne sa assolutamente nulla.
+    *   \`### 🌍 Contesto Culturale e Pragmatica\`: Spiega il 'non detto', le implicazioni sociali e culturali. In quali contesti sociali è appropriato? Che effetto produce sull'interlocutore?
+    *   \`### 🗣️ Pronuncia e Fonetica\`: Se pertinente, fornisci note sulla pronuncia, suoni difficili per i non madrelingua o accenti particolari.
+    *   \`### ✨ Esempi Pratici e Variazioni\`: Fornisci una lista ricca di frasi di esempio chiare, realistiche e diverse tra loro. Mostra come l'espressione può essere modificata (es. tempi verbali, forma negativa, uso figurato).
+    *   \`### 🔄 Rete Lessicale (Alternative, Sinonimi, Contrari)\`: Crea una rete di parole correlate, spiegando le sottili differenze di significato e registro tra sinonimi, alternative comuni e contrari.
+    *   \`### ⚠️ Errori Comuni e Falsi Amici\`: Evidenzia le trappole tipiche per gli studenti (es. falsi amici con altre lingue, preposizioni sbagliate, errori di concordanza).
+    *   \`### 🧠 Tecniche di Memorizzazione\`: Offri tecniche mnemoniche VISIVE o ASSOCIATIVE per fissare il concetto nella memoria a lungo termine.
+    *   \`### 📰 Dove Trovarla (Nel Mondo Reale)\`: Suggerisci esempi di dove lo studente può trovare questa espressione in uso reale (es. tipo di articoli di giornale, film, canzoni, libri).
+    *   \`### ✍️ Esercizio Pratico Interattivo\`: Proponi un esercizio che richieda all'utente di PRODURRE attivamente lingua, non solo di riconoscere (es. 'Scrivi una frase che descriva...', 'Completa questo mini-dialogo...').
+
+3.  **Stile:** Usa un linguaggio amichevole, incoraggiante ma estremamente preciso. Usa **grassetto** per evidenziare i termini chiave e rendere il testo più leggibile e strutturato.
+
+4.  **Adattamento:** Adatta OBBLIGATORIAMENTE la complessità del linguaggio e degli esempi al livello QCER (${cefrLevel}) e al registro (${register}) richiesti.
+
+**Formato JSON Obbligatorio:**
+La tua intera risposta (la risposta approfondita in Markdown e i suggerimenti) deve essere contenuta all'interno di un oggetto JSON, come specificato nello schema.
+
+**Compito Specifico:**
+Rispondi alla domanda dell'utente seguendo scrupolosamente le istruzioni di formattazione sopra. Dopo aver fornito la risposta approfondita, genera 3 domande di approfondimento intelligenti e pertinenti che stimolino la curiosità e portino la conversazione a un livello superiore.`;
+
+    const prompt = `
+---
+CONVERSAZIONE PRECEDENTE:
+${formattedHistory}
+---
+NUOVA DOMANDA:
+Utente: ${question}
+---
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.6,
+            }
+        });
+        const jsonString = response.text.trim();
+        const parsedResult = JSON.parse(jsonString) as Omit<AITutorResponse, 'chunks'>;
+        return { ...parsedResult, chunks: [] };
+    } catch (error) {
+        throw new Error(handleGeminiError(error, "la risposta del tutor IA"));
+    }
+};
+
+export const answerTutorFollowUp = async (context: string, question: string): Promise<{ answer: string; chunks: GroundingChunk[] }> => {
+    const prompt = `
+Agisci come un tutor di lingua italiana esperto. Ti viene fornito un "contesto" (la tua risposta precedente) e una domanda di approfondimento dell'utente.
+Rispondi alla domanda in modo chiaro e conciso, usando la ricerca web se necessario per arricchire la risposta.
+
+---
+**CONTESTO (TUA RISPOSTA PRECEDENTE):**
+${context}
+---
+
+**DOMANDA DI APPROFONDIMENTO:**
+"${question}"
+---
+
+Rispondi solo con la risposta alla domanda.
+`;
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                temperature: 0.3,
+                tools: [{googleSearch: {}}],
+            },
+        });
+        
+        const answer = response.text.trim();
+        const chunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[];
+
+        return { answer, chunks };
+    } catch (error) {
+        throw new Error(handleGeminiError(error, `la risposta alla domanda di approfondimento "${question}"`));
+    }
+};
+
+export const getProactiveTutorIntro = async (item: SavedCollocation, cefrLevel: string, register: string): Promise<string> => {
+    const prompt = `
+Agisci come un tutor di lingua italiana amichevole e proattivo.
+Hai notato che il tuo studente deve ripassare la seguente collocazione dal suo deck di studio:
+- Voce: "${item.voce}"
+- Spiegazione: "${item.spiegazione}"
+
+Il tuo compito è iniziare una conversazione per esercitarsi su questa specifica collocazione.
+- Inizia con un saluto amichevole.
+- Menziona che hai visto che è ora di ripassare l'espressione.
+- Poni una domanda aperta e creativa che incoraggi lo studente a usare la collocazione in modo naturale.
+- Adatta il tuo linguaggio al livello QCER ${cefrLevel} e al registro linguistico ${register}.
+
+Esempio di output: "Ciao! Ho notato che nel tuo deck di studio c'è l'espressione '**prendere una decisione**'. Che ne dici se la ripassiamo insieme? Raccontami di una decisione importante che hai dovuto prendere di recente."
+
+Rispondi ESCLUSIVAMENTE con la tua frase di apertura. Non includere altre spiegazioni o metatesto.
+`;
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                temperature: 0.7,
+            },
+        });
+        return response.text.trim();
+    } catch (error) {
+        throw new Error(handleGeminiError(error, `la generazione dell'introduzione proattiva per "${item.voce}"`));
+    }
+};
+
+export const analyzeUserTextForTutor = async (text: string, cefrLevel: string): Promise<string> => {
+    const prompt = `Agisci come un esperto revisore di testi e tutor di italiano L2. L'utente ha fornito un testo da analizzare. Il tuo compito è correggerlo e fornire una spiegazione didattica.
+
+TESTO DELL'UTENTE:
+---
+${text}
+---
+
+**Istruzioni:**
+1.  **Correggi il testo:** Riscrivi il testo in un italiano naturale e corretto.
+2.  **Evidenzia gli errori:** Analizza il testo originale e identifica gli errori (grammaticali, lessicali, di stile).
+3.  **Spiega gli errori:** Per ogni errore, spiega brevemente e chiaramente perché è sbagliato.
+4.  **Suggerisci miglioramenti:** Proponi l'uso di collocazioni o espressioni idiomatiche più appropriate per rendere il testo più fluente, come parlerebbe un madrelingua.
+5.  **Adatta al livello:** Calibra la complessità delle tue spiegazioni per uno studente di livello ${cefrLevel}.
+
+**Formato della risposta (Markdown obbligatorio):**
+Usa la seguente struttura:
+
+### Testo Corretto
+*Qui inserisci la versione riscritta del testo.*
+
+### Analisi e Suggerimenti
+*Qui fornisci l'analisi punto per punto. Per ogni punto, usa una lista:*
+- **Errore:** [cita la parte errata] -> **Correzione:** [cita la parte corretta]
+  - **Spiegazione:** [spiegazione chiara e concisa dell'errore]
+- **Suggerimento (Collocazione):** Per [contesto], invece di [frase originale], potresti usare "**[collocazione suggerita]**".
+  - **Esempio:** [frase di esempio con la nuova collocazione]
+
+Sii incoraggiante e didattico. La tua risposta deve contenere solo il risultato formattato.
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                temperature: 0.4,
+            },
+        });
+        return response.text.trim();
+    } catch (error) {
+        throw new Error(handleGeminiError(error, "l'analisi del testo"));
+    }
+};
+
+export const getCollaborativeFeedback = async (text: string, options: { cefrLevel: string, register: string }): Promise<CreativeFeedbackResult> => {
+  const schema = {
+    type: Type.OBJECT,
+    properties: {
+      suggestions: {
+        type: Type.ARRAY,
+        description: "Una lista di suggerimenti concreti per migliorare il testo.",
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            original_snippet: { 
+              type: Type.STRING, 
+              description: "La porzione di testo ESATTA dall'originale a cui si riferisce il suggerimento." 
+            },
+            suggested_change: { 
+              type: Type.STRING,
+              description: "La versione modificata o alternativa del frammento."
+            },
+            explanation: { 
+              type: Type.STRING,
+              description: "Una spiegazione chiara e didattica del perché la modifica è un miglioramento."
+            },
+            type: { 
+              type: Type.STRING, 
+              enum: ['collocazione', 'grammatica', 'stile', 'chiarezza'], 
+              description: "Il tipo di suggerimento." 
+            }
+          },
+          required: ["original_snippet", "suggested_change", "explanation", "type"]
+        }
+      }
+    },
+    required: ["suggestions"]
+  };
+
+  const prompt = `
+Agisci come un partner di scrittura collaborativo e un tutor di italiano L2. Analizza il testo fornito dall'utente e, invece di correggerlo direttamente, offri una lista di suggerimenti specifici e azionabili per migliorarlo.
+
+**Testo dell'utente:**
+---
+${text}
+---
+
+**Istruzioni:**
+1.  **Identifica i punti di miglioramento:** Cerca errori grammaticali, uso di collocazioni innaturali, problemi di stile o frasi poco chiare.
+2.  **Crea suggerimenti:** Per ogni punto identificato, crea un suggerimento. Ogni suggerimento deve includere:
+    *   \`original_snippet\`: La porzione di testo ESATTA dall'originale. Deve corrispondere perfettamente.
+    *   \`suggested_change\`: La tua proposta di miglioramento.
+    *   \`explanation\`: Una spiegazione breve ma chiara del "perché" il tuo suggerimento è migliore (es. "Questa è una collocazione più comune", "L'accordo del participio passato non era corretto", "Questa versione è più concisa").
+    *   \`type\`: Categorizza il suggerimento come 'collocazione', 'grammatica', 'stile', o 'chiarezza'.
+3.  **Priorità:** Concentrati sui 3-5 suggerimenti più importanti e didatticamente utili. Non essere troppo pedante.
+4.  **Adattamento:** Adatta la complessità dei suggerimenti al livello QCER ${options.cefrLevel} e al registro ${options.register}.
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON che segua lo schema fornito.
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        temperature: 0.5,
+      },
+    });
+    const jsonString = response.text.trim();
+    return JSON.parse(jsonString) as CreativeFeedbackResult;
+  } catch (error) {
+    throw new Error(handleGeminiError(error, `l'analisi collaborativa del testo`));
+  }
+};
+
+
+export const getCulturalContext = async (expression: string): Promise<string> => {
+    const prompt = `
+Agisci come un esperto di linguistica e cultura italiana, specializzato nella didattica per studenti L2.
+
+Obiettivo: Fornisci un'analisi approfondita dell'espressione fornita.
+
+Espressione: "${expression}"
+
+**Istruzioni:**
+1.  **Formato:** Rispondi in formato Markdown, usando \`###\` per le intestazioni.
+2.  **Stile:** Usa un tono amichevole, didattico e accessibile.
+3.  **Lingua:** Rispondi interamente in italiano.
+
+**Sezioni Obbligatorie:**
+
+### Origine e Significato Letterale
+Spiega da dove deriva l'espressione, se l'origine è nota. Analizza il significato letterale delle parole (es. "Rompere il ghiaccio" significa letteralmente frantumare del ghiaccio).
+
+### Connotazioni e Sfumature Culturali
+Descrivi le connotazioni (positive, negative, ironiche?) e le sfumature di significato che un madrelingua percepisce. Quali immagini o idee evoca?
+
+### Contesto d'Uso: Quando e Come
+Fornisci esempi chiari di situazioni in cui un madrelingua userebbe questa espressione.
+- **Quando usarla:** Descrivi 2-3 scenari tipici (es. al lavoro, tra amici, in una situazione imbarazzante).
+- **Quando NON usarla:** Indica contesti in cui l'espressione sarebbe inappropriata o suonerebbe strana (es. in un contesto troppo formale, o se presa alla lettera).
+
+### Esempi Pratici
+Fornisci 2-3 frasi di esempio che mostrino l'espressione in azione in contesti diversi.
+
+Mantieni l'analisi focalizzata e utile per uno studente che vuole andare oltre la semplice definizione da dizionario. La tua risposta deve contenere solo il risultato formattato.
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                temperature: 0.5,
+            },
+        });
+        return response.text.trim();
+    } catch (error) {
+        throw new Error(handleGeminiError(error, `l'analisi culturale per "${expression}"`));
+    }
+};
+
+export const suggestCollocationsFromConcept = async (concept: string, options: { cefrLevel: string; register: string; }): Promise<SuggestCollocationsResult> => {
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            suggestions: {
+                type: Type.ARRAY,
+                description: "Una lista di 3-5 collocazioni suggerite che esprimono il concetto.",
+                items: { type: Type.STRING }
+            }
+        },
+        required: ["suggestions"]
+    };
+
+    const prompt = `
+Agisci come un linguista computazionale italiano. Dato un concetto o un'intenzione dell'utente, suggerisci una lista di 3-5 collocazioni comuni e naturali in italiano che esprimono quel concetto.
+
+Adatta la complessità e lo stile delle collocazioni suggerite a uno studente di livello ${options.cefrLevel} e a un registro ${options.register}.
+
+Concetto fornito: "${concept}"
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON che segua lo schema fornito. Non includere metatesto.`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.6,
+            },
+        });
+        const jsonString = response.text.trim();
+        return JSON.parse(jsonString) as SuggestCollocationsResult;
+    } catch (error) {
+        throw new Error(handleGeminiError(error, `la ricerca di collocazioni per il concetto "${concept}"`));
+    }
+};
+
+export const generateThematicDeck = async (theme: string, options: { cefrLevel: string; register: string; }): Promise<ThematicDeckResult> => {
+    const cardSchema = {
+        type: Type.OBJECT,
+        properties: {
+            voce: { type: Type.STRING, description: "La collocazione, normalizzata al lemma." },
+            spiegazione: { type: Type.STRING, description: "Una spiegazione chiara e concisa (stile Feynman)." },
+            frase_originale: { type: Type.STRING, description: "Una frase d'esempio naturale." },
+            tema: { type: Type.STRING, description: `Il tema richiesto: "${theme}".` }
+        },
+        required: ["voce", "spiegazione", "frase_originale", "tema"]
+    };
+
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            deck: {
+                type: Type.ARRAY,
+                description: "Una lista di 5-7 schede di collocazioni relative al tema.",
+                items: cardSchema
+            }
+        },
+        required: ["deck"]
+    };
+    
+    const prompt = `
+Agisci come un esperto insegnante di lingua italiana. Dato un tema, genera un mini-deck di 5-7 collocazioni essenziali e comuni relative a quel tema.
+
+Tema: "${theme}"
+
+Per ogni collocazione:
+1.  **voce**: Fornisci la collocazione normalizzata.
+2.  **spiegazione**: Scrivi una spiegazione chiara e semplice (stile Feynman), adatta al livello ${options.cefrLevel}.
+3.  **frase_originale**: Crea una frase d'esempio realistica, adatta al registro ${options.register}.
+4.  **tema**: Assegna il tema originale ("${theme}").
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON che segua lo schema fornito.`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.7,
+            },
+        });
+        const jsonString = response.text.trim();
+        return JSON.parse(jsonString) as ThematicDeckResult;
+    } catch (error) {
+        throw new Error(handleGeminiError(error, `la generazione del deck per il tema "${theme}"`));
+    }
+};
+
+export const generateLanguageMindMap = async (concept: string, options: { cefrLevel: string; register: string; }): Promise<MindMapResult> => {
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            nodi: {
+                type: Type.ARRAY,
+                description: "Una lista di nodi per la mappa mentale.",
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        voce: { type: Type.STRING, description: "La parola o frase per il nodo." },
+                        tipo: {
+                            type: Type.STRING,
+                            description: "Il tipo di nodo.",
+                            enum: ["collocazione", "sinonimo", "concetto_correlato", "antonimo"]
+                        }
+                    },
+                    required: ["voce", "tipo"]
+                }
+            }
+        },
+        required: ["nodi"]
+    };
+
+    const prompt = `
+Agisci come un lessicografo e linguista computazionale. Dato un concetto centrale, crea una mappa mentale di termini correlati in italiano. La mappa deve includere:
+- \`collocazioni\`: 3-5 collocazioni comuni che usano il concetto.
+- \`sinonimi\`: 2-3 sinonimi stretti.
+- \`concetti_correlati\`: 2-3 concetti semanticamente vicini che possono essere ulteriormente esplorati.
+- \`antonimi\`: 1-2 antonimi, se applicabile.
+
+Adatta la complessità dei suggerimenti a uno studente di livello ${options.cefrLevel} e a un registro ${options.register}.
+
+Concetto Centrale: "${concept}"
+
+Rispondi SOLO con il JSON strutturato secondo lo schema fornito. Non includere il concetto centrale stesso nei nodi.
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.6,
+            },
+        });
+        const jsonString = response.text.trim();
+        return JSON.parse(jsonString) as MindMapResult;
+    } catch (error) {
+        throw new Error(handleGeminiError(error, `la generazione della mappa mentale per "${concept}"`));
     }
 };

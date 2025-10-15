@@ -1,9 +1,19 @@
+export interface RelatedWord {
+  parola: string;
+  esempio: string;
+}
+
 export interface Collocation {
   voce: string;
   spiegazione: string;
   frase_originale: string;
-  parole_correlate?: string[];
+  parole_correlate?: RelatedWord[];
   deepDiveContent?: string;
+  traduzione_arabo?: string;
+  definizione_arabo?: string;
+  esempio_arabo?: string;
+  pronuncia_arabo?: string;
+  contesto_culturale?: string;
 }
 
 export interface SavedCollocation extends Collocation {
@@ -67,7 +77,6 @@ export interface QuizOptions {
   register?: string;
 }
 
-// FIX: Define RolePlayResult and related types that were missing.
 export interface RolePlayScenario {
   titolo: string;
   contesto: string;
@@ -78,17 +87,39 @@ export interface RolePlayResult {
   scenari: RolePlayScenario[];
 }
 
+export interface VoiceScenario {
+  title: string;
+  description: string;
+  system_instruction: string;
+}
+
+export interface VoiceScenariosResult {
+    scenari: VoiceScenario[];
+}
+
+export interface FollowUpQuestion {
+  id: string;
+  question: string;
+  answer: string | null;
+  chunks: GroundingChunk[];
+  isLoading: boolean;
+  error: string | null;
+}
+
 export interface ConversationTurn {
   id: string;
   speaker: 'user' | 'model' | 'system';
   text: string;
+  format?: 'markdown';
+  chunks?: GroundingChunk[];
+  followUps?: FollowUpQuestion[];
 }
 
 export interface DictionaryEntry {
   termine_italiano: string;
   traduzione_arabo: string;
   definizione_italiano: string;
-  definizione_arabo: string;
+  definizione_arabo?: string;
   esempio_italiano: string;
   esempio_arabo: string;
   pronuncia_arabo: string;
@@ -96,7 +127,10 @@ export interface DictionaryEntry {
 }
 
 export interface DictionaryResult {
-  dizionario_approfondito: DictionaryEntry[];
+  dizionario_tematico: {
+    tema: string;
+    voci: DictionaryEntry[];
+  }[];
 }
 
 export interface GroundingChunk {
@@ -110,6 +144,11 @@ export interface ImprovedSentenceResult {
   improved_sentence: string;
   collocation_used: string;
   explanation: string;
+}
+
+export interface ImprovedTextResult {
+  improved_text: string;
+  explanation_of_changes: string;
 }
 
 export interface WeeklyGoal {
@@ -142,4 +181,44 @@ export interface CardDeepDiveResult {
   esempi_pratici: PracticalExample[];
   registro_e_sfumature: string;
   alternative_comuni: CommonAlternative[];
+}
+
+export interface AITutorResponse {
+  response: string;
+  suggestions: string[];
+  chunks: GroundingChunk[];
+}
+
+export interface SuggestCollocationsResult {
+  suggestions: string[];
+}
+
+export interface ThematicDeckResult {
+  deck: GeneratedCardData[];
+}
+
+export interface MindMapNode {
+  voce: string;
+  tipo: 'collocazione' | 'sinonimo' | 'concetto_correlato' | 'antonimo';
+}
+
+export interface MindMapResult {
+  nodi: MindMapNode[];
+}
+export interface DeepDiveOptions {
+  cefrLevel?: string;
+  register?: string;
+  itemContext?: Collocation;
+}
+
+export interface CreativeSuggestion {
+  id: string;
+  original_snippet: string;
+  suggested_change: string;
+  explanation: string;
+  type: 'collocazione' | 'grammatica' | 'stile' | 'chiarezza';
+}
+
+export interface CreativeFeedbackResult {
+  suggestions: Omit<CreativeSuggestion, 'id'>[];
 }

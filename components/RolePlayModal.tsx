@@ -132,6 +132,7 @@ const RolePlayModal: React.FC<RolePlayModalProps> = ({ isOpen, onClose, collocat
                     <option value="Informale">Informale</option>
                     <option value="Giornalistico">Giornalistico</option>
                     <option value="Letterario">Letterario</option>
+                    <option value="Burocratico">Burocratico</option>
                 </select>
             </div>
         </div>

@@ -13,16 +13,9 @@ const MapIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     strokeLinejoin="round"
     {...props}
   >
-    <circle cx="12" cy="5" r="3" />
-    <circle cx="5" cy="12" r="3" />
-    <circle cx="19" cy="12" r="3" />
-    <circle cx="12" cy="19" r="3" />
-    <path d="m12 8-3.5 1" />
-    <path d="m12 8 3.5 1" />
-    <path d="m12 16 3.5-1" />
-    <path d="m12 16-3.5-1" />
-    <path d="M8.5 12.5 5 12" />
-    <path d="m15.5 12.5 3.5-.5" />
+    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+    <line x1="8" x2="8" y1="2" y2="18" />
+    <line x1="16" x2="16" y1="6" y2="22" />
   </svg>
 );
 

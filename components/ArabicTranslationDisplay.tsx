@@ -29,7 +29,7 @@ const ArabicTranslationDisplay: React.FC<ArabicTranslationDisplayProps> = ({ tra
   };
 
   return (
-    <div className="glass-panel p-6 sm:p-8 rounded-2xl shadow-lg animate-fade-in-up">
+    <div className="bg-white/50 dark:bg-slate-800/30 backdrop-blur-sm p-6 sm:p-8 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-lg animate-fade-in-up">
       <div className="flex items-center gap-4 mb-6">
         <div className="p-3 bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/40 dark:to-emerald-900/40 rounded-xl">
           <TranslateIcon className="w-8 h-8 text-green-600 dark:text-green-400" />

@@ -1,5 +1,5 @@
 {
-  "name": "estrattore-di-collocazioni-italiane",
+  "name": "estrattore",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,7 +12,8 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "@google/genai": "^1.21.0",
-    "reactflow": "^11"
+    "reactflow": "^11",
+    "react-router-dom": "^6"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

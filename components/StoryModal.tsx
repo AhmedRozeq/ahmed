@@ -110,6 +110,7 @@ const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, collocation, i
                             <option value="Informale">Informale</option>
                             <option value="Giornalistico">Giornalistico</option>
                             <option value="Letterario">Letterario</option>
+                            <option value="Burocratico">Burocratico</option>
                         </select>
                     </div>
                 </div>

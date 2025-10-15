@@ -91,7 +91,7 @@ const WebSearchModal: React.FC<WebSearchModalProps> = ({ isOpen, onClose, onText
                   onChange={(e) => setTopic(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
                   placeholder="Es. 'intelligenza artificiale in Italia'"
-                  className="w-full p-2.5 border border-slate-300/80 dark:border-slate-600/80 rounded-lg bg-white/60 dark:bg-slate-900/40 focus:ring-2 focus:ring-sky-500"
+                  className="w-full p-2.5 bg-white/60 dark:bg-gray-900/40 border border-gray-300/80 dark:border-gray-700/60 rounded-lg shadow-inner focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 />
               </div>
               {error && (
